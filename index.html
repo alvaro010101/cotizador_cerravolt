@@ -340,25 +340,30 @@
     </div>
 
     <div class="field-group">
-      <h2>Condiciones / notas</h2>
-      <div class="field">
-        <textarea id="qNotes">Cotización válida por el plazo indicado desde la fecha de emisión.
-Forma de pago: a coordinar (efectivo o transferencia).
-Trabajos eléctricos realizados conforme a normativa SEC.
-Materiales adicionales no contemplados se cotizan aparte.</textarea>
-      </div>
+      <h2>Condiciones</h2>
+      <p style="font-size:11.5px; color:var(--steel-500); line-height:1.6; margin-bottom:12px;">
+        Texto fijo en todas las cotizaciones: validez del plazo, garantía de 6 meses y normativa SEC. Puedes sumar estas cláusulas adicionales (se insertan antes de la línea de normativa SEC):
+      </p>
+      <label class="checkbox-field" style="margin-bottom:10px; align-items:flex-start;">
+        <input type="checkbox" id="qCondNoVisita" style="margin-top:3px;">
+        <span>Cotización realizada sin visita técnica (pueden surgir ítems adicionales en terreno)</span>
+      </label>
+      <label class="checkbox-field" style="align-items:flex-start;">
+        <input type="checkbox" id="qCond50" style="margin-top:3px;">
+        <span>Se considera aceptada con abono del 50% del total</span>
+      </label>
     </div>
 
     <div class="field-group">
       <h2>Datos bancarios</h2>
       <label class="checkbox-field" style="margin-bottom:10px;"><input type="checkbox" id="qBankShow"> Incluir datos bancarios en el documento</label>
       <div class="field">
-        <textarea id="qBank" placeholder="Banco: 
-Tipo de cuenta: 
-N° de cuenta: 
-RUT: 
-Titular: 
-Email:"></textarea>
+        <textarea id="qBank">Alvaro Linares
+26.491.407-8
+Banco de Chile
+Cuenta Vista
+00-012-19211-24
+linaresalvaro2@gmail.com</textarea>
       </div>
     </div>
 
@@ -686,8 +691,19 @@ Email:"></textarea>
       totalsEl.innerHTML = `<tr class="total"><td>Total</td><td>${clp(subtotal)}</td></tr>`;
     }
 
-    // Notes
-    document.getElementById('outNotes').textContent = document.getElementById('qNotes').value;
+    // Notes (condiciones: texto fijo + cláusulas opcionales, SEC siempre al final)
+    const condParts = [
+      'Cotización válida por el plazo indicado desde la fecha de emisión.',
+      'Garantía de 6 meses sobre mano de obra e instalación. No cubre daños por mal uso, golpes, manipulación de terceros o problemas estructurales.'
+    ];
+    if(document.getElementById('qCondNoVisita').checked){
+      condParts.push('Cotización realizada sin visita, si al momento de instalar se requiere algún ítem adicional no contemplado en la cotización se notificará para considerar una cotización adicional.');
+    }
+    if(document.getElementById('qCond50').checked){
+      condParts.push('Cotización se considera aceptada con el abono del 50% del total del servicio.');
+    }
+    condParts.push('Trabajos eléctricos realizados conforme a normativa SEC.');
+    document.getElementById('outNotes').textContent = condParts.join('\n');
 
     // Datos bancarios
     document.getElementById('outBankBlock').style.display = document.getElementById('qBankShow').checked ? 'block' : 'none';
@@ -725,7 +741,10 @@ Email:"></textarea>
       serviceShow: document.getElementById('qServiceShow').checked,
       items: items,
       iva: document.getElementById('qIva').checked,
-      notes: document.getElementById('qNotes').value,
+      notes: {
+        condNoVisita: document.getElementById('qCondNoVisita').checked,
+        cond50: document.getElementById('qCond50').checked
+      },
       bankShow: document.getElementById('qBankShow').checked,
       bank: document.getElementById('qBank').value,
       images: images
@@ -743,7 +762,8 @@ Email:"></textarea>
     document.getElementById('qServiceShow').checked = s.serviceShow !== false;
     items = (s.items && s.items.length) ? s.items : [{ desc:'', qty:1, price:0 }];
     document.getElementById('qIva').checked = !!s.iva;
-    document.getElementById('qNotes').value = s.notes || '';
+    document.getElementById('qCondNoVisita').checked = !!s.notes?.condNoVisita;
+    document.getElementById('qCond50').checked = !!s.notes?.cond50;
     document.getElementById('qBankShow').checked = !!s.bankShow;
     document.getElementById('qBank').value = s.bank || '';
     images = s.images || [];
@@ -909,13 +929,16 @@ Email:"></textarea>
     document.getElementById('qServiceShow').checked = true;
     items = [{ desc:'', qty:1, price:0 }];
     document.getElementById('qIva').checked = false;
-    document.getElementById('qNotes').value =
-`Cotización válida por el plazo indicado desde la fecha de emisión.
-Forma de pago: a coordinar (efectivo o transferencia).
-Trabajos eléctricos realizados conforme a normativa SEC.
-Materiales adicionales no contemplados se cotizan aparte.`;
+    document.getElementById('qCondNoVisita').checked = false;
+    document.getElementById('qCond50').checked = false;
     document.getElementById('qBankShow').checked = false;
-    document.getElementById('qBank').value = '';
+    document.getElementById('qBank').value =
+`Alvaro Linares
+26.491.407-8
+Banco de Chile
+Cuenta Vista
+00-012-19211-24
+linaresalvaro2@gmail.com`;
     images = [];
     renderEdit();
     renderImagesEdit();
@@ -927,7 +950,7 @@ Materiales adicionales no contemplados se cotizan aparte.`;
 
   // init de la app (formulario) — corre siempre, esté o no logueado
   document.getElementById('qDate').value = new Date().toISOString().slice(0,10);
-  ['cName','cAddr','cContact','qNum','qDate','qValid','qService','qServiceShow','qIva','qNotes','qBankShow','qBank'].forEach(id=>{
+  ['cName','cAddr','cContact','qNum','qDate','qValid','qService','qServiceShow','qIva','qCondNoVisita','qCond50','qBankShow','qBank'].forEach(id=>{
     document.getElementById(id).addEventListener('input', update);
   });
   document.getElementById('imgUpload').addEventListener('change', (e) => {
