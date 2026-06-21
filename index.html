@@ -174,7 +174,13 @@
     padding:16mm 16mm 14mm; box-shadow:0 20px 60px -10px rgba(0,0,0,0.55);
     font-family:var(--body);
   }
-  .doc-header{display:flex; justify-content:space-between; align-items:flex-start; gap:16px; padding-bottom:14px; border-bottom:2px solid var(--navy);}
+  .doc-header{
+    display:flex; justify-content:space-between; align-items:flex-start; gap:16px;
+    margin:-16mm -16mm 0 -16mm; padding:16mm 16mm 14px 16mm;
+    border-bottom:2px solid var(--navy);
+    background:linear-gradient(120deg, #eaf1f7 0%, #f3f6f9 55%, #eef2f6 100%);
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
   .doc-brand{display:flex; align-items:center; gap:12px; filter:drop-shadow(0 1px 2.5px rgba(10,26,51,0.18));}
   .doc-brand img.brand-icon{height:13mm; width:auto; display:block;}
   .doc-brand .word{font-family:var(--display); font-weight:700; font-size:19px; letter-spacing:0.01em; color:var(--navy);}
@@ -248,12 +254,12 @@
   .doc-footer .contact b{color:var(--navy);}
 
   @media print{
-    @page{ size:A4; margin:16mm 16mm 14mm; }
+    @page{ size:A4; margin:0; }
     body{background:#fff;}
     .no-print{display:none !important;}
     .preview-wrap{padding:0; min-height:auto; background:#fff; display:block;}
-    .doc-page{box-shadow:none; width:100%; min-height:auto; margin:0; padding:0;}
-    .doc-images{page-break-before:always; break-before:page;}
+    .doc-page{box-shadow:none; width:210mm; min-height:auto; margin:0;}
+    .doc-images{page-break-before:always; break-before:page; margin-top:16mm;}
     .layout{display:block;}
   }
 </style>
@@ -599,7 +605,7 @@ linaresalvaro2@gmail.com</textarea>
     const base = document.getElementById('qNotes').value.split('\n').filter(l => l.trim() !== '');
     const extra = [];
     if(document.getElementById('qCondNoVisita').checked){
-      extra.push('Cotización realizada sin visita, si al momento de instalar se requiere algún ítem adicional no contemplado en la cotización se notificará para considerar una cotización adicional.');
+      extra.push('Cotización realizada sin visita técnica. Si al momento de instalar se requiere algún ítem adicional no contemplado en la cotización, esto se notificará y dará lugar a una recotización.');
     }
     if(document.getElementById('qCond50').checked){
       extra.push('Cotización se considera aceptada con el abono del 50% del total del servicio.');
@@ -772,7 +778,7 @@ linaresalvaro2@gmail.com</textarea>
   function applyState(s){
     document.getElementById('qNum').value = s.num || '';
     document.getElementById('qDate').value = s.date || new Date().toISOString().slice(0,10);
-    document.getElementById('qValid').value = s.validDays || 7;
+    document.getElementById('qValid').value = s.validDays || 10;
     document.getElementById('cName').value = s.client?.name || '';
     document.getElementById('cAddr').value = s.client?.addr || '';
     document.getElementById('cContact').value = s.client?.contact || '';
@@ -955,7 +961,7 @@ Garantía de 6 meses sobre mano de obra e instalación. No cubre daños por mal 
     document.getElementById('cContact').value = '';
     document.getElementById('qNum').value = num;
     document.getElementById('qDate').value = new Date().toISOString().slice(0,10);
-    document.getElementById('qValid').value = 7;
+    document.getElementById('qValid').value = 10;
     document.getElementById('qService').value = '';
     document.getElementById('qServiceShow').checked = true;
     items = [{ desc:'', qty:1, price:0 }];
