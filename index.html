@@ -258,10 +258,21 @@
     body{background:#fff;}
     .no-print{display:none !important;}
     .preview-wrap{padding:0; min-height:auto; background:#fff; display:block;}
-    .doc-page{box-shadow:none; width:210mm; min-height:auto; margin:0;}
+    .doc-page{box-shadow:none; width:210mm; min-height:297mm; margin:0; position:relative;}
     .doc-images{page-break-before:always; break-before:page; margin-top:16mm;}
     .layout{display:block;}
+    .doc-footer{
+      position:fixed;
+      bottom:14mm;
+      left:16mm;
+      right:16mm;
+      margin-top:0;
+      -webkit-print-color-adjust:exact;
+      print-color-adjust:exact;
+    }
+    .doc-footer-spacer{display:block; height:28mm;}
   }
+  .doc-footer-spacer{display:none;}
 </style>
 </head>
 <body>
@@ -462,6 +473,8 @@ linaresalvaro2@gmail.com</textarea>
         <h3 id="outImagesHeading">Imágenes de referencia</h3>
         <div class="doc-images-grid" id="outImagesGrid"></div>
       </div>
+
+      <div class="doc-footer-spacer"></div>
 
       <div class="doc-footer">
         <div class="sec">
