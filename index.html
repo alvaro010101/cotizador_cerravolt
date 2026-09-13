@@ -109,6 +109,32 @@
   .layout{display:grid; grid-template-columns:380px 1fr; gap:0; align-items:start;}
   @media(max-width:980px){ .layout{grid-template-columns:1fr;} }
 
+  .tabs-bar{display:flex; gap:6px; padding:14px 24px 0; border-bottom:1px solid var(--line);}
+  .tab-btn{
+    font-family:var(--body); font-weight:600; font-size:13px; cursor:pointer;
+    padding:9px 16px; border-radius:8px 8px 0 0; border:1px solid transparent;
+    background:none; color:var(--steel-500);
+  }
+  .tab-btn:hover{color:var(--steel-100);}
+  .tab-btn.active{color:var(--blue-400); border-color:var(--line) var(--line) var(--bg); background:var(--panel);}
+
+  .glass-tab{padding:28px 24px; display:flex; justify-content:center;}
+  .glass-panel{
+    width:100%; max-width:820px; padding:28px; border:1px solid var(--line-strong);
+    border-radius:12px; background:var(--panel); gap:30px;
+  }
+  .glass-result{
+    margin-top:6px; padding:12px 14px; border-radius:8px; background:var(--panel-2);
+    border:1px solid var(--line-strong); display:flex; flex-direction:column; gap:6px;
+  }
+  .glass-result div{display:flex; justify-content:space-between; font-size:13px; color:var(--steel-300);}
+  .glass-result b{color:var(--steel-100); font-family:var(--mono);}
+  .glass-type-row{
+    display:flex; align-items:flex-end; gap:10px; padding:10px; border-radius:8px;
+    background:var(--panel-2); border:1px solid var(--line-strong);
+  }
+  .glass-type-row .field{flex:1; margin-bottom:0;}
+
   .panel{
     padding:24px; border-right:1px solid var(--line);
     display:flex; flex-direction:column; gap:26px;
@@ -127,6 +153,22 @@
   .field input:focus, .field textarea:focus{outline:none; border-color:var(--blue-500);}
   .field textarea{resize:vertical; min-height:90px; line-height:1.5;}
   .row2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+
+  .rich-toolbar{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px;}
+  .rt-btn{
+    font-size:11.5px; padding:4px 10px; border-radius:6px; min-width:26px;
+    border:1px solid var(--line-strong); background:var(--panel-2);
+    color:var(--steel-300); cursor:pointer; line-height:1.4;
+  }
+  .rt-btn:hover{border-color:var(--blue-500); color:var(--steel-100);}
+  .rich-editor{
+    width:100%; background:var(--panel-2); border:1px solid var(--line-strong);
+    border-radius:8px; padding:9px 11px; font-size:13.5px; color:var(--steel-100);
+    line-height:1.5; min-height:190px; resize:vertical; overflow-y:auto;
+  }
+  .rich-editor:focus{outline:none; border-color:var(--blue-500);}
+  .rich-editor:empty::before{content:attr(data-placeholder); color:var(--steel-500);}
+  .rich-editor ul, .rich-editor ol{margin:4px 0 4px 20px; padding:0;}
 
   .item-row{
     border:1px solid var(--line-strong); border-radius:10px; padding:12px; margin-bottom:10px;
@@ -275,7 +317,9 @@
 
   .doc-notes{margin-top:26px; padding-top:14px; border-top:1px solid #e3e7ec;}
   .doc-notes h3{font-family:var(--mono); font-size:9.5px; letter-spacing:0.1em; text-transform:uppercase; color:#8a93a3; margin-bottom:8px;}
-  .doc-notes p{font-size:11.5px; color:#4a5263; line-height:1.85; white-space:pre-line;}
+  .doc-notes .notes-body{font-size:11.5px; color:#4a5263; line-height:1.7;}
+  .doc-notes .notes-body div{margin:2px 0;}
+  .doc-notes .notes-body ul, .doc-notes .notes-body ol{margin:4px 0 4px 18px; padding:0;}
 
   .doc-footer{
     margin-top:30px; padding-top:16px; border-top:1px solid #e3e7ec;
@@ -337,7 +381,7 @@
     <span class="save-status" id="saveStatus"></span>
     <button class="btn-tb" onclick="newQuote()">+ Nueva</button>
     <button class="btn-tb" onclick="saveQuote()">💾 Guardar</button>
-    <button class="btn" onclick="window.print()">
+    <button class="btn" onclick="switchTab('cotizacion'); window.print()">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
       Imprimir / Guardar PDF
     </button>
@@ -345,7 +389,12 @@
   </div>
 </div>
 
-<div class="layout">
+<div class="tabs-bar no-print">
+  <button type="button" class="tab-btn active" id="tabBtnCotizacion" onclick="switchTab('cotizacion')">Cotización</button>
+  <button type="button" class="tab-btn" id="tabBtnVidrios" onclick="switchTab('vidrios')">🧮 Calculadora de vidrios</button>
+</div>
+
+<div class="layout" id="tabCotizacion">
 
 
   <aside class="panel no-print">
@@ -363,6 +412,12 @@
 
     <div class="field-group">
       <h2>Cliente</h2>
+      <div class="field">
+        <label>Cliente guardado</label>
+        <select id="clientSelect" class="select-field" onchange="cliOnSelect(this.value)">
+          <option value="">— Cliente nuevo / sin seleccionar —</option>
+        </select>
+      </div>
       <div class="field"><label>Nombre</label><input id="cName" placeholder="Nombre del cliente"></div>
       <div class="field"><label>Dirección</label><input id="cAddr" placeholder="Calle, número, comuna"></div>
       <div class="field"><label>Teléfono / Email (opcional)</label><input id="cContact" placeholder="+56 9 ..."></div>
@@ -423,32 +478,29 @@
       </label>
 
       <p style="font-size:11.5px; color:var(--steel-500); line-height:1.6; margin:0 0 8px;">
-        Condiciones adicionales (una por línea — se agregarán con viñeta •):
+        Condiciones adicionales — usa la barra para dar formato:
       </p>
-      <div style="position:relative;">
-        <div style="display:flex; gap:6px; margin-bottom:6px;">
-          <button type="button" onclick="insertBullet()" style="
-            font-size:11px; padding:3px 10px; border-radius:6px;
-            border:1px solid var(--line); background:var(--surface-2);
-            color:var(--steel-300); cursor:pointer; display:flex; align-items:center; gap:5px;
-          ">
-            <span style="font-size:16px; line-height:1;">•</span> Insertar viñeta
-          </button>
-        </div>
-        <textarea id="qNotes" rows="4" placeholder="Ej: Traslado incluido solo dentro de la comuna&#10;Ej: Material sujeto a disponibilidad en bodega"></textarea>
+      <div class="rich-toolbar">
+        <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="qnCmd('bold')" title="Negrita"><b>N</b></button>
+        <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="qnCmd('italic')" title="Cursiva"><i>K</i></button>
+        <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="qnCmd('underline')" title="Subrayado"><u>S</u></button>
+        <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="qnCmd('insertUnorderedList')" title="Lista con viñetas">• Lista</button>
+        <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="qnCmd('insertOrderedList')" title="Lista numerada">1. Lista</button>
+        <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="qnCmd('removeFormat')" title="Quitar formato">Limpiar</button>
       </div>
+      <div id="qNotes" class="rich-editor" contenteditable="true" data-placeholder="Ej: Traslado incluido solo dentro de la comuna"></div>
     </div>
 
     <div class="field-group">
       <h2>Datos bancarios</h2>
       <label class="checkbox-field" style="margin-bottom:10px;"><input type="checkbox" id="qBankShow"> Incluir datos bancarios en el documento</label>
       <div class="field">
-        <textarea id="qBank">Alvaro Linares
-26.491.407-8
+        <textarea id="qBank">CERRAVOLT SPA
+78.457.851-8
 Banco de Chile
-Cuenta Vista
-00-012-19211-24
-linaresalvaro2@gmail.com</textarea>
+Cuenta Corriente
+00-157-69660-10
+cerravolt@gmail.com</textarea>
       </div>
     </div>
 
@@ -531,7 +583,7 @@ linaresalvaro2@gmail.com</textarea>
 
       <div class="doc-notes">
         <h3>Condiciones</h3>
-        <p id="outNotes"></p>
+        <div id="outNotes" class="notes-body"></div>
       </div>
 
       <div class="doc-highlight" id="outBankBlock" style="display:none;">
@@ -563,6 +615,42 @@ linaresalvaro2@gmail.com</textarea>
     </div>
   </div>
 
+</div>
+
+<div class="glass-tab no-print" id="tabVidrios" style="display:none;">
+  <div class="panel glass-panel">
+    <div class="field-group">
+      <h2>Catálogo de vidrios</h2>
+      <p style="font-size:11.5px; color:var(--steel-500); line-height:1.6; margin:0 0 12px;">
+        Define el valor por m² de cada tipo de vidrio. Se guardan en tu cuenta y quedan disponibles para todas tus cotizaciones futuras.
+      </p>
+      <div id="glassTypesList" style="display:flex; flex-direction:column; gap:10px; margin-bottom:14px;"></div>
+      <div class="row2">
+        <div class="field"><label>Nuevo tipo de vidrio</label><input id="newGlassName" placeholder="Ej: Laminado 6+6"></div>
+        <div class="field"><label>Precio por m² (CLP)</label><input id="newGlassPrice" type="number" min="0" step="100" value="0"></div>
+      </div>
+      <button class="add-btn" type="button" onclick="addGlassType()">+ Agregar tipo de vidrio</button>
+    </div>
+
+    <div class="field-group">
+      <h2>Calculadora</h2>
+      <p style="font-size:11.5px; color:var(--steel-500); line-height:1.6; margin:0 0 12px;">
+        Calcula el costo de un vidrio según sus medidas y agrégalo directo como ítem de la cotización.
+      </p>
+      <div class="field"><label>Tipo de vidrio</label><select id="calcGlassType" class="select-field" onchange="calcGlass()"></select></div>
+      <div class="row2">
+        <div class="field"><label>Ancho (mm)</label><input id="calcW" type="number" min="0" step="1" placeholder="0" oninput="calcGlass()"></div>
+        <div class="field"><label>Alto (mm)</label><input id="calcH" type="number" min="0" step="1" placeholder="0" oninput="calcGlass()"></div>
+      </div>
+      <div class="field"><label>Cantidad</label><input id="calcQty" type="number" min="1" step="1" value="1" oninput="calcGlass()"></div>
+      <div class="glass-result">
+        <div><span>Área por unidad</span><b id="calcArea">0.00 m²</b></div>
+        <div><span>Precio por m²</span><b id="calcPriceM2">$0</b></div>
+        <div><span>Subtotal (<span id="calcQtyLabel">1</span> un.)</span><b id="calcSubtotal">$0</b></div>
+      </div>
+      <button class="btn-tb" type="button" style="margin-top:14px; justify-content:center;" onclick="addGlassCalcToQuote()">+ Agregar a la cotización</button>
+    </div>
+  </div>
 </div>
 
 </div>
@@ -619,6 +707,203 @@ linaresalvaro2@gmail.com</textarea>
 
   function userQuotesRef(){
     return db.collection('users').doc(currentUser.uid).collection('quotes');
+  }
+
+  // ---------- Clientes guardados ----------
+  function userClientsRef(){
+    return db.collection('users').doc(currentUser.uid).collection('clients');
+  }
+
+  function cliSlug(s){
+    const slug = (s || '').toString().trim().toLowerCase()
+      .normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    return slug || ('cliente-' + Date.now());
+  }
+
+  let savedClientsCache = [];
+
+  async function refreshClientsList(){
+    try{
+      const snap = await userClientsRef().get();
+      savedClientsCache = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
+      savedClientsCache.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es'));
+    }catch(e){
+      console.error('Error leyendo clientes:', e);
+      savedClientsCache = [];
+    }
+    renderClientSelect();
+  }
+
+  function renderClientSelect(){
+    const sel = document.getElementById('clientSelect');
+    const current = sel.value;
+    sel.innerHTML = '<option value="">— Cliente nuevo / sin seleccionar —</option>' +
+      savedClientsCache.map(c => `<option value="${escapeAttr(c.id)}">${escapeAttr(c.name || '(sin nombre)')}${c.addr ? ' — ' + escapeAttr(c.addr) : ''}</option>`).join('');
+    if(savedClientsCache.some(c => c.id === current)) sel.value = current;
+  }
+
+  function cliOnSelect(id){
+    if(!id) return;
+    const c = savedClientsCache.find(x => x.id === id);
+    if(!c) return;
+    document.getElementById('cName').value = c.name || '';
+    document.getElementById('cAddr').value = c.addr || '';
+    document.getElementById('cContact').value = c.contact || '';
+    update();
+  }
+
+  // Guarda o actualiza el cliente actual del formulario en la libreta de
+  // clientes, para poder reutilizarlo desde el desplegable en cotizaciones futuras.
+  async function saveClientFromForm(){
+    const name = document.getElementById('cName').value.trim();
+    if(!name) return;
+    const addr = document.getElementById('cAddr').value.trim();
+    const contact = document.getElementById('cContact').value.trim();
+    const id = cliSlug(name);
+    try{
+      await userClientsRef().doc(id).set({ name, addr, contact });
+      await refreshClientsList();
+      document.getElementById('clientSelect').value = id;
+    }catch(e){
+      console.error('Error guardando cliente:', e);
+    }
+  }
+
+  // ---------- Pestañas (Cotización / Calculadora de vidrios) ----------
+  function switchTab(tab){
+    document.getElementById('tabCotizacion').style.display = tab === 'cotizacion' ? '' : 'none';
+    document.getElementById('tabVidrios').style.display = tab === 'vidrios' ? 'flex' : 'none';
+    document.getElementById('tabBtnCotizacion').classList.toggle('active', tab === 'cotizacion');
+    document.getElementById('tabBtnVidrios').classList.toggle('active', tab === 'vidrios');
+  }
+
+  // ---------- Catálogo de vidrios y calculadora ----------
+  function userGlassRef(){
+    return db.collection('users').doc(currentUser.uid).collection('glassTypes');
+  }
+
+  let glassTypes = [];
+
+  async function refreshGlassTypes(){
+    try{
+      let snap = await userGlassRef().get();
+      if(snap.empty){
+        // Primera vez: siembra el catálogo con los dos tipos más comunes,
+        // con precio en 0 para que el usuario ingrese su propio valor por m².
+        await userGlassRef().doc('monolitico').set({ name:'Vidrio Monolítico', pricePerM2:0 });
+        await userGlassRef().doc('templado').set({ name:'Vidrio Templado', pricePerM2:0 });
+        snap = await userGlassRef().get();
+      }
+      glassTypes = snap.docs.map(d => Object.assign({ id:d.id }, d.data()));
+      glassTypes.sort((a,b) => (a.name||'').localeCompare(b.name||'', 'es'));
+    }catch(e){
+      console.error('Error leyendo catálogo de vidrios:', e);
+      glassTypes = [];
+    }
+    renderGlassTypes();
+    renderGlassCalcSelect();
+  }
+
+  function renderGlassTypes(){
+    const wrap = document.getElementById('glassTypesList');
+    if(glassTypes.length === 0){
+      wrap.innerHTML = '<p style="font-size:12.5px; color:var(--steel-500);">Sin tipos de vidrio todavía.</p>';
+      return;
+    }
+    wrap.innerHTML = glassTypes.map(g => `
+      <div class="glass-type-row">
+        <div class="field"><label>Nombre</label><input value="${escapeAttr(g.name)}" onchange="setGlassField('${g.id}','name',this.value)"></div>
+        <div class="field"><label>Precio por m² (CLP)</label><input type="number" min="0" step="100" value="${g.pricePerM2||0}" onchange="setGlassField('${g.id}','pricePerM2',parseFloat(this.value)||0)"></div>
+        <button class="remove-btn" title="Quitar tipo de vidrio" onclick="removeGlassType('${g.id}')">✕</button>
+      </div>
+    `).join('');
+  }
+
+  async function setGlassField(id, key, val){
+    const g = glassTypes.find(x => x.id === id);
+    if(!g) return;
+    g[key] = val;
+    try{
+      await userGlassRef().doc(id).set({ name:g.name, pricePerM2:g.pricePerM2||0 });
+    }catch(e){
+      console.error('Error guardando tipo de vidrio:', e);
+    }
+    renderGlassCalcSelect();
+  }
+
+  async function addGlassType(){
+    const nameEl = document.getElementById('newGlassName');
+    const priceEl = document.getElementById('newGlassPrice');
+    const name = nameEl.value.trim();
+    if(!name){ nameEl.focus(); return; }
+    const id = cliSlug(name);
+    try{
+      await userGlassRef().doc(id).set({ name, pricePerM2: parseFloat(priceEl.value) || 0 });
+      nameEl.value = '';
+      priceEl.value = '0';
+      await refreshGlassTypes();
+    }catch(e){
+      console.error('Error agregando tipo de vidrio:', e);
+      alert('No se pudo guardar el tipo de vidrio.');
+    }
+  }
+
+  async function removeGlassType(id){
+    if(!confirm('¿Quitar este tipo de vidrio del catálogo?')) return;
+    try{
+      await userGlassRef().doc(id).delete();
+      await refreshGlassTypes();
+    }catch(e){
+      console.error('Error quitando tipo de vidrio:', e);
+    }
+  }
+
+  function renderGlassCalcSelect(){
+    const sel = document.getElementById('calcGlassType');
+    const current = sel.value;
+    sel.innerHTML = glassTypes.map(g => `<option value="${escapeAttr(g.id)}">${escapeAttr(g.name)}</option>`).join('');
+    if(glassTypes.some(g => g.id === current)) sel.value = current;
+    calcGlass();
+  }
+
+  function calcGlass(){
+    const g = glassTypes.find(x => x.id === document.getElementById('calcGlassType').value) || glassTypes[0];
+    const wMM = parseFloat(document.getElementById('calcW').value) || 0;
+    const hMM = parseFloat(document.getElementById('calcH').value) || 0;
+    const qty = Math.max(1, parseInt(document.getElementById('calcQty').value) || 1);
+    const areaM2 = (wMM/1000) * (hMM/1000);
+    const priceM2 = g ? (g.pricePerM2 || 0) : 0;
+    const subtotal = areaM2 * priceM2 * qty;
+    document.getElementById('calcArea').textContent = areaM2.toFixed(2) + ' m²';
+    document.getElementById('calcPriceM2').textContent = clp(priceM2);
+    document.getElementById('calcQtyLabel').textContent = qty;
+    document.getElementById('calcSubtotal').textContent = clp(subtotal);
+  }
+
+  function addGlassCalcToQuote(){
+    const g = glassTypes.find(x => x.id === document.getElementById('calcGlassType').value);
+    if(!g){ alert('Agrega primero un tipo de vidrio con su precio por m².'); return; }
+    const wMM = parseFloat(document.getElementById('calcW').value) || 0;
+    const hMM = parseFloat(document.getElementById('calcH').value) || 0;
+    const qty = Math.max(1, parseInt(document.getElementById('calcQty').value) || 1);
+    if(wMM <= 0 || hMM <= 0){ alert('Ingresa el ancho y el alto del vidrio.'); return; }
+    const areaM2 = (wMM/1000) * (hMM/1000);
+    const unitPrice = Math.round(areaM2 * (g.pricePerM2 || 0));
+    const desc = `${g.name} ${wMM}x${hMM}mm (${areaM2.toFixed(2)} m²)`;
+    if(items.length === 1 && !items[0].desc && !items[0].price){
+      items[0] = { desc, qty, price: unitPrice };
+    } else {
+      items.push({ desc, qty, price: unitPrice });
+    }
+    renderEdit();
+    update();
+    document.getElementById('calcW').value = '';
+    document.getElementById('calcH').value = '';
+    document.getElementById('calcQty').value = '1';
+    calcGlass();
+    showSaveStatus('Vidrio agregado a la cotización');
+    switchTab('cotizacion');
   }
 
   let items = [
@@ -696,6 +981,10 @@ linaresalvaro2@gmail.com</textarea>
     { value:"negro",  label:"Negro" },
     { value:"madera", label:"Madera" }
   ];
+  const CQ_MANILLA_POS = [
+    { value:"vidrio", label:"En el vidrio" },
+    { value:"marco",  label:"En el marco" }
+  ];
   let cqState = { titulo:"", groups:[] };
 
   function cqToggle(){
@@ -715,7 +1004,7 @@ linaresalvaro2@gmail.com</textarea>
   }
 
   function cqAddGroup(){
-    cqState.groups.push({ alto:2000, panels:[{ ancho:1000, tipo:"ventana", apertura:"fijo", marco:45, marcoColor:"blanco", manilla:false }] });
+    cqState.groups.push({ alto:2000, panels:[{ ancho:1000, tipo:"ventana", apertura:"fijo", marco:45, marcoColor:"blanco", manilla:false, manillaPos:"vidrio" }] });
     cqRenderControls();
     update();
   }
@@ -746,7 +1035,12 @@ linaresalvaro2@gmail.com</textarea>
             <div class="field"><label>Tipo</label><select onchange="cqSetPanel(${gi},${pi},'tipo',this.value)">${cqOptionsHtml(CQ_TIPOS, panel.tipo)}</select></div>
             <div class="field"><label>Apertura</label><select onchange="cqSetPanel(${gi},${pi},'apertura',this.value)">${cqOptionsHtml(CQ_APERTURAS, panel.apertura)}</select></div>
           </div>
-          <label class="cq-marco-toggle"><input type="checkbox" ${hasManilla?'checked':''} onchange="cqSetPanel(${gi},${pi},'manilla',this.checked)"> Con manilla</label>
+          <div class="cq-marco-block">
+            <label class="cq-marco-toggle"><input type="checkbox" ${hasManilla?'checked':''} onchange="cqToggleManilla(${gi},${pi},this.checked)"> Con manilla</label>
+            ${hasManilla ? `<div class="cq-marco-detail">
+              <div class="field"><label>Posición de la manilla</label><select onchange="cqSetPanel(${gi},${pi},'manillaPos',this.value)">${cqOptionsHtml(CQ_MANILLA_POS, panel.manillaPos||'vidrio')}</select></div>
+            </div>` : ''}
+          </div>
           <div class="cq-marco-block">
             <label class="cq-marco-toggle"><input type="checkbox" ${hasMarco?'checked':''} onchange="cqToggleMarco(${gi},${pi},this.checked)"> Con marco</label>
             ${hasMarco ? `<div class="cq-marco-detail">
@@ -775,8 +1069,15 @@ linaresalvaro2@gmail.com</textarea>
     cqRenderControls();
     update();
   }
+  function cqToggleManilla(gi, pi, checked){
+    const panel = cqState.groups[gi].panels[pi];
+    panel.manilla = checked;
+    if(checked && !panel.manillaPos) panel.manillaPos = 'vidrio';
+    cqRenderControls();
+    update();
+  }
   function cqAddPanel(gi){
-    cqState.groups[gi].panels.push({ ancho:500, tipo:"vidrio", apertura:"fijo", marco:0, marcoColor:"blanco", manilla:false });
+    cqState.groups[gi].panels.push({ ancho:500, tipo:"vidrio", apertura:"fijo", marco:0, marcoColor:"blanco", manilla:false, manillaPos:"vidrio" });
     cqRenderControls();
     update();
   }
@@ -891,7 +1192,15 @@ linaresalvaro2@gmail.com</textarea>
         if(panel.tipo === "espejo"){
           parts.push(`<line x1="${cqFmt(innerX+innerW*0.14)}" y1="${cqFmt(innerY+innerH*0.86)}" x2="${cqFmt(innerX+innerW*0.42)}" y2="${cqFmt(innerY+innerH*0.14)}" stroke="#ffffff" stroke-width="${cqFmt(Math.max(2, Math.min(innerW,innerH)*0.025))}" stroke-opacity="0.55" stroke-linecap="round"/>`);
         }
-        if(panel.manilla){
+        if(panel.manilla && panel.manillaPos === 'marco' && marcoPx > 0.5){
+          // Manija sobre el marco: barra sólida corta embutida en el ancho del perfil.
+          const barW = marcoPx * 0.55;
+          const barH = Math.max(18, heightPx * 0.14);
+          const barX = x + wPx - marcoPx + (marcoPx - barW)/2;
+          const barY = topY + heightPx/2 - barH/2;
+          parts.push(`<rect x="${cqFmt(barX)}" y="${cqFmt(barY)}" width="${cqFmt(barW)}" height="${cqFmt(barH)}" rx="${cqFmt(Math.min(barW,3))}" fill="${CQ_INK}"/>`);
+        } else if(panel.manilla){
+          // Manija sobre el vidrio: línea + roseta, estilo manilla de puerta/ventana.
           const hx = innerX + innerW*0.86, hy = innerY + innerH*0.52;
           parts.push(`<line x1="${cqFmt(hx)}" y1="${cqFmt(innerY+4)}" x2="${cqFmt(hx)}" y2="${cqFmt(innerY+innerH-4)}" stroke="${CQ_INK}" stroke-width="1" stroke-opacity="0.55"/>`);
           parts.push(`<circle cx="${cqFmt(hx)}" cy="${cqFmt(hy)}" r="3.2" fill="${CQ_INK}"/>`);
@@ -975,25 +1284,22 @@ linaresalvaro2@gmail.com</textarea>
       lines.push('Cotización se considera aceptada con el abono del 50% del total del servicio.');
     if(document.getElementById('qCondSEC').checked)
       lines.push('Trabajos eléctricos realizados conforme a normativa SEC.');
-    // Condiciones adicionales del textarea
-    const extra = document.getElementById('qNotes').value.split('\n').filter(l => l.trim() !== '');
-    extra.forEach(l => lines.push(l.trim().startsWith('•') ? l.trim() : '• ' + l.trim()));
-    return lines.map(l => (l.startsWith('•') ? l : '• ' + l)).join('\n');
+    // Condiciones fijas (marcadas por checkbox) con viñeta, seguidas del
+    // contenido con formato libre del editor de condiciones adicionales.
+    const fixedHtml = lines.map(l => `<div>• ${escapeHtml(l)}</div>`).join('');
+    const extraHtml = document.getElementById('qNotes').innerHTML;
+    return fixedHtml + extraHtml;
   }
 
-  function insertBullet(){
-    const ta = document.getElementById('qNotes');
-    const pos = ta.selectionStart;
-    const val = ta.value;
-    // Insert bullet at start of current line
-    const lineStart = val.lastIndexOf('\n', pos - 1) + 1;
-    const before = val.substring(0, lineStart);
-    const after = val.substring(lineStart);
-    if(!after.startsWith('• ')){
-      ta.value = before + '• ' + after;
-      ta.selectionStart = ta.selectionEnd = lineStart + 2;
-    }
-    ta.focus();
+  // Convierte texto plano (cotizaciones guardadas antes del editor con
+  // formato) en el mismo marcado de líneas que usa el editor enriquecido.
+  function qnLinesToHtml(text){
+    return text.split('\n').map(l => `<div>${escapeHtml(l) || '<br>'}</div>`).join('');
+  }
+
+  function qnCmd(cmd){
+    document.getElementById('qNotes').focus();
+    document.execCommand(cmd, false, null);
     update();
   }
 
@@ -1106,7 +1412,7 @@ linaresalvaro2@gmail.com</textarea>
     }
 
     // Notes (condiciones: texto editable + cláusulas opcionales insertadas antes de la línea SEC)
-    document.getElementById('outNotes').textContent = assembleNotes();
+    document.getElementById('outNotes').innerHTML = assembleNotes();
 
     // Datos bancarios
     document.getElementById('outBankBlock').style.display = document.getElementById('qBankShow').checked ? 'block' : 'none';
@@ -1148,7 +1454,7 @@ linaresalvaro2@gmail.com</textarea>
       items: items,
       iva: document.getElementById('qIva').checked,
       notes: {
-        text: document.getElementById('qNotes').value,
+        text: document.getElementById('qNotes').innerHTML,
         condValida: document.getElementById('qCondValida').checked,
         condGarantia: document.getElementById('qCondGarantia').checked,
         condNoVisita: document.getElementById('qCondNoVisita').checked,
@@ -1180,7 +1486,8 @@ linaresalvaro2@gmail.com</textarea>
     const legacyText = s.notes?.text ||
 `Cotización válida por el plazo indicado desde la fecha de emisión.
 Garantía de 6 meses sobre mano de obra e instalación. No cubre daños por mal uso, golpes, manipulación de terceros o problemas estructurales.`;
-    document.getElementById('qNotes').value = legacyText.split('\n').filter(l => !/normativa\s+SEC/i.test(l)).join('\n');
+    const filteredLegacy = legacyText.split('\n').filter(l => !/normativa\s+SEC/i.test(l)).join('\n');
+    document.getElementById('qNotes').innerHTML = /<[a-z][\s\S]*>/i.test(filteredLegacy) ? filteredLegacy : qnLinesToHtml(filteredLegacy);
     document.getElementById('qCondValida').checked = s.notes?.condValida !== false;
     document.getElementById('qCondGarantia').checked = s.notes?.condGarantia !== false;
     document.getElementById('qCondNoVisita').checked = !!s.notes?.condNoVisita;
@@ -1316,6 +1623,7 @@ Garantía de 6 meses sobre mano de obra e instalación. No cubre daños por mal 
       await userQuotesRef().doc(num).set(state);
       currentNum = num;
       await refreshSavedList();
+      await saveClientFromForm();
       showSaveStatus('Guardado ✓ N° ' + num);
     }catch(e){
       console.error('Error guardando:', e);
@@ -1329,6 +1637,8 @@ Garantía de 6 meses sobre mano de obra e instalación. No cubre daños por mal 
       if(doc.exists){
         applyState(doc.data());
         currentNum = num;
+        const matchedClient = savedClientsCache.find(c => c.id === cliSlug(document.getElementById('cName').value));
+        document.getElementById('clientSelect').value = matchedClient ? matchedClient.id : '';
         renderSavedResults(document.getElementById('savedSearch').value);
         closeSavedDropdown();
         showSaveStatus('Cargada N° ' + num);
@@ -1357,6 +1667,7 @@ Garantía de 6 meses sobre mano de obra e instalación. No cubre daños por mal 
     document.getElementById('cName').value = '';
     document.getElementById('cAddr').value = '';
     document.getElementById('cContact').value = '';
+    document.getElementById('clientSelect').value = '';
     document.getElementById('qNum').value = num;
     document.getElementById('qDate').value = new Date().toISOString().slice(0,10);
     document.getElementById('qValid').value = 10;
@@ -1364,9 +1675,9 @@ Garantía de 6 meses sobre mano de obra e instalación. No cubre daños por mal 
     document.getElementById('qServiceShow').checked = true;
     items = [{ desc:'', qty:1, price:0 }];
     document.getElementById('qIva').checked = false;
-    document.getElementById('qNotes').value =
+    document.getElementById('qNotes').innerHTML = qnLinesToHtml(
 `Cotización válida por el plazo indicado desde la fecha de emisión.
-Garantía de 6 meses sobre mano de obra e instalación. No cubre daños por mal uso, golpes, manipulación de terceros o problemas estructurales.`;
+Garantía de 6 meses sobre mano de obra e instalación. No cubre daños por mal uso, golpes, manipulación de terceros o problemas estructurales.`);
     document.getElementById('qCondValida').checked = true;
     document.getElementById('qCondGarantia').checked = true;
     document.getElementById('qCondNoVisita').checked = false;
@@ -1374,12 +1685,12 @@ Garantía de 6 meses sobre mano de obra e instalación. No cubre daños por mal 
     document.getElementById('qCondSEC').checked = true;
     document.getElementById('qBankShow').checked = false;
     document.getElementById('qBank').value =
-`Alvaro Linares
-26.491.407-8
+`CERRAVOLT SPA
+78.457.851-8
 Banco de Chile
-Cuenta Vista
-00-012-19211-24
-linaresalvaro2@gmail.com`;
+Cuenta Corriente
+00-157-69660-10
+cerravolt@gmail.com`;
     images = [];
     cqState = { titulo:'', groups:[] };
     document.getElementById('qCroquisShow').checked = false;
@@ -1396,6 +1707,7 @@ linaresalvaro2@gmail.com`;
 
   // init de la app (formulario) — corre siempre, esté o no logueado
   document.getElementById('qDate').value = new Date().toISOString().slice(0,10);
+  try{ document.execCommand('defaultParagraphSeparator', false, 'div'); }catch(e){}
   ['cName','cAddr','cContact','qNum','qDate','qValid','qService','qServiceShow','qIva','qNotes','qCondValida','qCondGarantia','qCondNoVisita','qCond50','qCondSEC','qBankShow','qBank'].forEach(id=>{
     document.getElementById(id).addEventListener('input', update);
   });
@@ -1425,6 +1737,8 @@ linaresalvaro2@gmail.com`;
   // init de los datos — solo corre tras iniciar sesión (llamado desde onAuthStateChanged)
   async function initAppData(){
     await refreshSavedList();
+    await refreshClientsList();
+    await refreshGlassTypes();
     if(!document.getElementById('qNum').value){
       document.getElementById('qNum').value = await nextQuoteNumber();
       update();
