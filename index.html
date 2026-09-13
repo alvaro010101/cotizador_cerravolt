@@ -192,8 +192,8 @@
   .cq-marco-toggle input{width:auto;}
   .cq-marco-detail{display:flex; flex-direction:column; gap:8px;}
   .cq-marco-detail .field{margin-bottom:0;}
-  #cqDocSvgWrap{display:flex; justify-content:center;}
-  #cqDocSvgWrap svg{max-width:100%; height:auto;}
+  .cq-doc-svg-wrap{display:flex; justify-content:center;}
+  .cq-doc-svg-wrap svg{max-width:100%; height:auto;}
 
   /* ---------- Preview ---------- */
   .preview-wrap{
@@ -545,11 +545,7 @@ linaresalvaro2@gmail.com</textarea>
         <div class="doc-images-grid" id="outImagesGrid"></div>
       </div>
 
-      <div class="doc-images" id="outCroquisSection" style="display:none;">
-        <div class="page-break-indicator">Nueva página</div>
-        <h3 id="outCroquisHeading">Croquis de medidas</h3>
-        <div id="cqDocSvgWrap"></div>
-      </div>
+      <div id="outCroquisSection" style="display:none;"></div>
 
       <div class="doc-footer-spacer"></div>
 
@@ -925,18 +921,33 @@ linaresalvaro2@gmail.com</textarea>
     return { width: totalWidthPx, height: totalHeightPx, svg: parts.join("\n") };
   }
 
+  // Máximo de grupos de paños por página del croquis: si hay más, se reparten
+  // en páginas adicionales para que cada una se vea despejada y legible.
+  const CQ_GROUPS_PER_PAGE = 2;
+
   function cqRenderDiagram(){
     const section = document.getElementById('outCroquisSection');
-    const wrap = document.getElementById('cqDocSvgWrap');
     const show = document.getElementById('qCroquisShow').checked;
-    const layout = show ? cqBuildDiagram(cqState) : null;
-    if(layout){
-      section.style.display = 'block';
-      wrap.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${layout.width} ${layout.height}" width="${layout.width}" height="${layout.height}">${layout.svg}</svg>`;
-    } else {
+    const groups = cqState.groups.filter(g => g.panels.length > 0);
+    if(!show || groups.length === 0){
       section.style.display = 'none';
-      wrap.innerHTML = '';
+      section.innerHTML = '';
+      return;
     }
+    section.style.display = 'block';
+    const pages = [];
+    for(let i = 0; i < groups.length; i += CQ_GROUPS_PER_PAGE){
+      pages.push(groups.slice(i, i + CQ_GROUPS_PER_PAGE));
+    }
+    section.innerHTML = pages.map((pageGroups, pi) => {
+      const layout = cqBuildDiagram({ titulo: pi === 0 ? cqState.titulo : '', groups: pageGroups });
+      const heading = 'Croquis de medidas' + (pages.length > 1 ? ` (${pi+1}/${pages.length})` : '');
+      return `<div class="doc-images">
+        <div class="page-break-indicator">Nueva página</div>
+        <h3>${escapeHtml(heading)}</h3>
+        <div class="cq-doc-svg-wrap"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${layout.width} ${layout.height}" width="${layout.width}" height="${layout.height}">${layout.svg}</svg></div>
+      </div>`;
+    }).join('');
   }
 
   // Tamaño dinámico de cada imagen en el documento según cuántas hay, para que
