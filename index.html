@@ -693,7 +693,8 @@ linaresalvaro2@gmail.com</textarea>
   const CQ_MARCOS = [
     { value:"blanco", label:"Blanco" },
     { value:"gris",   label:"Gris / Plata" },
-    { value:"negro",  label:"Negro" }
+    { value:"negro",  label:"Negro" },
+    { value:"madera", label:"Madera" }
   ];
   let cqState = { titulo:"", groups:[] };
 
@@ -714,7 +715,7 @@ linaresalvaro2@gmail.com</textarea>
   }
 
   function cqAddGroup(){
-    cqState.groups.push({ alto:2000, panels:[{ ancho:1000, tipo:"ventana", apertura:"fijo", marco:45, marcoColor:"blanco" }] });
+    cqState.groups.push({ alto:2000, panels:[{ ancho:1000, tipo:"ventana", apertura:"fijo", marco:45, marcoColor:"blanco", manilla:false }] });
     cqRenderControls();
     update();
   }
@@ -734,6 +735,7 @@ linaresalvaro2@gmail.com</textarea>
         </div>`;
       html += group.panels.map((panel, pi) => {
         const hasMarco = panel.marco > 0;
+        const hasManilla = panel.manilla !== undefined ? panel.manilla : panel.tipo === 'puerta';
         return `<div class="cq-panel-row" data-gi="${gi}" data-pi="${pi}">
           <div class="cq-panel-row-top">
             <span class="num-badge">P${pi+1}</span>
@@ -744,6 +746,7 @@ linaresalvaro2@gmail.com</textarea>
             <div class="field"><label>Tipo</label><select onchange="cqSetPanel(${gi},${pi},'tipo',this.value)">${cqOptionsHtml(CQ_TIPOS, panel.tipo)}</select></div>
             <div class="field"><label>Apertura</label><select onchange="cqSetPanel(${gi},${pi},'apertura',this.value)">${cqOptionsHtml(CQ_APERTURAS, panel.apertura)}</select></div>
           </div>
+          <label class="cq-marco-toggle"><input type="checkbox" ${hasManilla?'checked':''} onchange="cqSetPanel(${gi},${pi},'manilla',this.checked)"> Con manilla</label>
           <div class="cq-marco-block">
             <label class="cq-marco-toggle"><input type="checkbox" ${hasMarco?'checked':''} onchange="cqToggleMarco(${gi},${pi},this.checked)"> Con marco</label>
             ${hasMarco ? `<div class="cq-marco-detail">
@@ -773,7 +776,7 @@ linaresalvaro2@gmail.com</textarea>
     update();
   }
   function cqAddPanel(gi){
-    cqState.groups[gi].panels.push({ ancho:500, tipo:"vidrio", apertura:"fijo", marco:0, marcoColor:"blanco" });
+    cqState.groups[gi].panels.push({ ancho:500, tipo:"vidrio", apertura:"fijo", marco:0, marcoColor:"blanco", manilla:false });
     cqRenderControls();
     update();
   }
@@ -792,7 +795,7 @@ linaresalvaro2@gmail.com</textarea>
 
   const CQ_FILLS = { vidrio:"#d3ecf1", ventana:"#d3ecf1", puerta:"#e8ecee", espejo:"#ccd0d4" };
   const CQ_TIPO_TAG = { vidrio:"VIDRIO", ventana:"VENTANA", puerta:"PUERTA", espejo:"ESPEJO" };
-  const CQ_MARCO_FILLS = { blanco:"#e7ebed", gris:"#b7bfc5", negro:"#33383d" };
+  const CQ_MARCO_FILLS = { blanco:"#e7ebed", gris:"#b7bfc5", negro:"#33383d", madera:"#a9744a" };
   const CQ_INK = "#243746";
 
   function cqFmt(n){ return (Math.round(n*10)/10).toString().replace(/\.0$/,''); }
@@ -888,7 +891,8 @@ linaresalvaro2@gmail.com</textarea>
         if(panel.tipo === "espejo"){
           parts.push(`<line x1="${cqFmt(innerX+innerW*0.14)}" y1="${cqFmt(innerY+innerH*0.86)}" x2="${cqFmt(innerX+innerW*0.42)}" y2="${cqFmt(innerY+innerH*0.14)}" stroke="#ffffff" stroke-width="${cqFmt(Math.max(2, Math.min(innerW,innerH)*0.025))}" stroke-opacity="0.55" stroke-linecap="round"/>`);
         }
-        if(panel.tipo === "puerta"){
+        const showManilla = panel.manilla !== undefined ? panel.manilla : panel.tipo === "puerta";
+        if(showManilla){
           const hx = innerX + innerW*0.86, hy = innerY + innerH*0.52;
           parts.push(`<line x1="${cqFmt(hx)}" y1="${cqFmt(innerY+4)}" x2="${cqFmt(hx)}" y2="${cqFmt(innerY+innerH-4)}" stroke="${CQ_INK}" stroke-width="1" stroke-opacity="0.55"/>`);
           parts.push(`<circle cx="${cqFmt(hx)}" cy="${cqFmt(hy)}" r="3.2" fill="${CQ_INK}"/>`);
