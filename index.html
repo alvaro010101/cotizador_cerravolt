@@ -363,6 +363,12 @@
 
     <div class="field-group">
       <h2>Cliente</h2>
+      <div class="field">
+        <label>Cliente guardado</label>
+        <select id="clientSelect" class="select-field" onchange="cliOnSelect(this.value)">
+          <option value="">— Cliente nuevo / sin seleccionar —</option>
+        </select>
+      </div>
       <div class="field"><label>Nombre</label><input id="cName" placeholder="Nombre del cliente"></div>
       <div class="field"><label>Dirección</label><input id="cAddr" placeholder="Calle, número, comuna"></div>
       <div class="field"><label>Teléfono / Email (opcional)</label><input id="cContact" placeholder="+56 9 ..."></div>
@@ -619,6 +625,67 @@ cerravolt@gmail.com</textarea>
 
   function userQuotesRef(){
     return db.collection('users').doc(currentUser.uid).collection('quotes');
+  }
+
+  // ---------- Clientes guardados ----------
+  function userClientsRef(){
+    return db.collection('users').doc(currentUser.uid).collection('clients');
+  }
+
+  function cliSlug(s){
+    const slug = (s || '').toString().trim().toLowerCase()
+      .normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    return slug || ('cliente-' + Date.now());
+  }
+
+  let savedClientsCache = [];
+
+  async function refreshClientsList(){
+    try{
+      const snap = await userClientsRef().get();
+      savedClientsCache = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
+      savedClientsCache.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es'));
+    }catch(e){
+      console.error('Error leyendo clientes:', e);
+      savedClientsCache = [];
+    }
+    renderClientSelect();
+  }
+
+  function renderClientSelect(){
+    const sel = document.getElementById('clientSelect');
+    const current = sel.value;
+    sel.innerHTML = '<option value="">— Cliente nuevo / sin seleccionar —</option>' +
+      savedClientsCache.map(c => `<option value="${escapeAttr(c.id)}">${escapeAttr(c.name || '(sin nombre)')}${c.addr ? ' — ' + escapeAttr(c.addr) : ''}</option>`).join('');
+    if(savedClientsCache.some(c => c.id === current)) sel.value = current;
+  }
+
+  function cliOnSelect(id){
+    if(!id) return;
+    const c = savedClientsCache.find(x => x.id === id);
+    if(!c) return;
+    document.getElementById('cName').value = c.name || '';
+    document.getElementById('cAddr').value = c.addr || '';
+    document.getElementById('cContact').value = c.contact || '';
+    update();
+  }
+
+  // Guarda o actualiza el cliente actual del formulario en la libreta de
+  // clientes, para poder reutilizarlo desde el desplegable en cotizaciones futuras.
+  async function saveClientFromForm(){
+    const name = document.getElementById('cName').value.trim();
+    if(!name) return;
+    const addr = document.getElementById('cAddr').value.trim();
+    const contact = document.getElementById('cContact').value.trim();
+    const id = cliSlug(name);
+    try{
+      await userClientsRef().doc(id).set({ name, addr, contact });
+      await refreshClientsList();
+      document.getElementById('clientSelect').value = id;
+    }catch(e){
+      console.error('Error guardando cliente:', e);
+    }
   }
 
   let items = [
@@ -1340,6 +1407,7 @@ Garantía de 6 meses sobre mano de obra e instalación. No cubre daños por mal 
       await userQuotesRef().doc(num).set(state);
       currentNum = num;
       await refreshSavedList();
+      await saveClientFromForm();
       showSaveStatus('Guardado ✓ N° ' + num);
     }catch(e){
       console.error('Error guardando:', e);
@@ -1353,6 +1421,8 @@ Garantía de 6 meses sobre mano de obra e instalación. No cubre daños por mal 
       if(doc.exists){
         applyState(doc.data());
         currentNum = num;
+        const matchedClient = savedClientsCache.find(c => c.id === cliSlug(document.getElementById('cName').value));
+        document.getElementById('clientSelect').value = matchedClient ? matchedClient.id : '';
         renderSavedResults(document.getElementById('savedSearch').value);
         closeSavedDropdown();
         showSaveStatus('Cargada N° ' + num);
@@ -1381,6 +1451,7 @@ Garantía de 6 meses sobre mano de obra e instalación. No cubre daños por mal 
     document.getElementById('cName').value = '';
     document.getElementById('cAddr').value = '';
     document.getElementById('cContact').value = '';
+    document.getElementById('clientSelect').value = '';
     document.getElementById('qNum').value = num;
     document.getElementById('qDate').value = new Date().toISOString().slice(0,10);
     document.getElementById('qValid').value = 10;
@@ -1449,6 +1520,7 @@ cerravolt@gmail.com`;
   // init de los datos — solo corre tras iniciar sesión (llamado desde onAuthStateChanged)
   async function initAppData(){
     await refreshSavedList();
+    await refreshClientsList();
     if(!document.getElementById('qNum').value){
       document.getElementById('qNum').value = await nextQuoteNumber();
       update();
