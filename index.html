@@ -128,6 +128,22 @@
   .field textarea{resize:vertical; min-height:90px; line-height:1.5;}
   .row2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
 
+  .rich-toolbar{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px;}
+  .rt-btn{
+    font-size:11.5px; padding:4px 10px; border-radius:6px; min-width:26px;
+    border:1px solid var(--line-strong); background:var(--panel-2);
+    color:var(--steel-300); cursor:pointer; line-height:1.4;
+  }
+  .rt-btn:hover{border-color:var(--blue-500); color:var(--steel-100);}
+  .rich-editor{
+    width:100%; background:var(--panel-2); border:1px solid var(--line-strong);
+    border-radius:8px; padding:9px 11px; font-size:13.5px; color:var(--steel-100);
+    line-height:1.5; min-height:190px; resize:vertical; overflow-y:auto;
+  }
+  .rich-editor:focus{outline:none; border-color:var(--blue-500);}
+  .rich-editor:empty::before{content:attr(data-placeholder); color:var(--steel-500);}
+  .rich-editor ul, .rich-editor ol{margin:4px 0 4px 20px; padding:0;}
+
   .item-row{
     border:1px solid var(--line-strong); border-radius:10px; padding:12px; margin-bottom:10px;
     background:var(--panel-2);
@@ -275,7 +291,9 @@
 
   .doc-notes{margin-top:26px; padding-top:14px; border-top:1px solid #e3e7ec;}
   .doc-notes h3{font-family:var(--mono); font-size:9.5px; letter-spacing:0.1em; text-transform:uppercase; color:#8a93a3; margin-bottom:8px;}
-  .doc-notes p{font-size:11.5px; color:#4a5263; line-height:1.85; white-space:pre-line;}
+  .doc-notes .notes-body{font-size:11.5px; color:#4a5263; line-height:1.7;}
+  .doc-notes .notes-body div{margin:2px 0;}
+  .doc-notes .notes-body ul, .doc-notes .notes-body ol{margin:4px 0 4px 18px; padding:0;}
 
   .doc-footer{
     margin-top:30px; padding-top:16px; border-top:1px solid #e3e7ec;
@@ -429,20 +447,17 @@
       </label>
 
       <p style="font-size:11.5px; color:var(--steel-500); line-height:1.6; margin:0 0 8px;">
-        Condiciones adicionales (una por línea — se agregarán con viñeta •):
+        Condiciones adicionales — usa la barra para dar formato:
       </p>
-      <div style="position:relative;">
-        <div style="display:flex; gap:6px; margin-bottom:6px;">
-          <button type="button" onclick="insertBullet()" style="
-            font-size:11px; padding:3px 10px; border-radius:6px;
-            border:1px solid var(--line); background:var(--surface-2);
-            color:var(--steel-300); cursor:pointer; display:flex; align-items:center; gap:5px;
-          ">
-            <span style="font-size:16px; line-height:1;">•</span> Insertar viñeta
-          </button>
-        </div>
-        <textarea id="qNotes" rows="4" placeholder="Ej: Traslado incluido solo dentro de la comuna&#10;Ej: Material sujeto a disponibilidad en bodega"></textarea>
+      <div class="rich-toolbar">
+        <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="qnCmd('bold')" title="Negrita"><b>N</b></button>
+        <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="qnCmd('italic')" title="Cursiva"><i>K</i></button>
+        <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="qnCmd('underline')" title="Subrayado"><u>S</u></button>
+        <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="qnCmd('insertUnorderedList')" title="Lista con viñetas">• Lista</button>
+        <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="qnCmd('insertOrderedList')" title="Lista numerada">1. Lista</button>
+        <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="qnCmd('removeFormat')" title="Quitar formato">Limpiar</button>
       </div>
+      <div id="qNotes" class="rich-editor" contenteditable="true" data-placeholder="Ej: Traslado incluido solo dentro de la comuna"></div>
     </div>
 
     <div class="field-group">
@@ -537,7 +552,7 @@ cerravolt@gmail.com</textarea>
 
       <div class="doc-notes">
         <h3>Condiciones</h3>
-        <p id="outNotes"></p>
+        <div id="outNotes" class="notes-body"></div>
       </div>
 
       <div class="doc-highlight" id="outBankBlock" style="display:none;">
@@ -1066,25 +1081,22 @@ cerravolt@gmail.com</textarea>
       lines.push('Cotización se considera aceptada con el abono del 50% del total del servicio.');
     if(document.getElementById('qCondSEC').checked)
       lines.push('Trabajos eléctricos realizados conforme a normativa SEC.');
-    // Condiciones adicionales del textarea
-    const extra = document.getElementById('qNotes').value.split('\n').filter(l => l.trim() !== '');
-    extra.forEach(l => lines.push(l.trim().startsWith('•') ? l.trim() : '• ' + l.trim()));
-    return lines.map(l => (l.startsWith('•') ? l : '• ' + l)).join('\n');
+    // Condiciones fijas (marcadas por checkbox) con viñeta, seguidas del
+    // contenido con formato libre del editor de condiciones adicionales.
+    const fixedHtml = lines.map(l => `<div>• ${escapeHtml(l)}</div>`).join('');
+    const extraHtml = document.getElementById('qNotes').innerHTML;
+    return fixedHtml + extraHtml;
   }
 
-  function insertBullet(){
-    const ta = document.getElementById('qNotes');
-    const pos = ta.selectionStart;
-    const val = ta.value;
-    // Insert bullet at start of current line
-    const lineStart = val.lastIndexOf('\n', pos - 1) + 1;
-    const before = val.substring(0, lineStart);
-    const after = val.substring(lineStart);
-    if(!after.startsWith('• ')){
-      ta.value = before + '• ' + after;
-      ta.selectionStart = ta.selectionEnd = lineStart + 2;
-    }
-    ta.focus();
+  // Convierte texto plano (cotizaciones guardadas antes del editor con
+  // formato) en el mismo marcado de líneas que usa el editor enriquecido.
+  function qnLinesToHtml(text){
+    return text.split('\n').map(l => `<div>${escapeHtml(l) || '<br>'}</div>`).join('');
+  }
+
+  function qnCmd(cmd){
+    document.getElementById('qNotes').focus();
+    document.execCommand(cmd, false, null);
     update();
   }
 
@@ -1197,7 +1209,7 @@ cerravolt@gmail.com</textarea>
     }
 
     // Notes (condiciones: texto editable + cláusulas opcionales insertadas antes de la línea SEC)
-    document.getElementById('outNotes').textContent = assembleNotes();
+    document.getElementById('outNotes').innerHTML = assembleNotes();
 
     // Datos bancarios
     document.getElementById('outBankBlock').style.display = document.getElementById('qBankShow').checked ? 'block' : 'none';
@@ -1239,7 +1251,7 @@ cerravolt@gmail.com</textarea>
       items: items,
       iva: document.getElementById('qIva').checked,
       notes: {
-        text: document.getElementById('qNotes').value,
+        text: document.getElementById('qNotes').innerHTML,
         condValida: document.getElementById('qCondValida').checked,
         condGarantia: document.getElementById('qCondGarantia').checked,
         condNoVisita: document.getElementById('qCondNoVisita').checked,
@@ -1271,7 +1283,8 @@ cerravolt@gmail.com</textarea>
     const legacyText = s.notes?.text ||
 `Cotización válida por el plazo indicado desde la fecha de emisión.
 Garantía de 6 meses sobre mano de obra e instalación. No cubre daños por mal uso, golpes, manipulación de terceros o problemas estructurales.`;
-    document.getElementById('qNotes').value = legacyText.split('\n').filter(l => !/normativa\s+SEC/i.test(l)).join('\n');
+    const filteredLegacy = legacyText.split('\n').filter(l => !/normativa\s+SEC/i.test(l)).join('\n');
+    document.getElementById('qNotes').innerHTML = /<[a-z][\s\S]*>/i.test(filteredLegacy) ? filteredLegacy : qnLinesToHtml(filteredLegacy);
     document.getElementById('qCondValida').checked = s.notes?.condValida !== false;
     document.getElementById('qCondGarantia').checked = s.notes?.condGarantia !== false;
     document.getElementById('qCondNoVisita').checked = !!s.notes?.condNoVisita;
@@ -1459,9 +1472,9 @@ Garantía de 6 meses sobre mano de obra e instalación. No cubre daños por mal 
     document.getElementById('qServiceShow').checked = true;
     items = [{ desc:'', qty:1, price:0 }];
     document.getElementById('qIva').checked = false;
-    document.getElementById('qNotes').value =
+    document.getElementById('qNotes').innerHTML = qnLinesToHtml(
 `Cotización válida por el plazo indicado desde la fecha de emisión.
-Garantía de 6 meses sobre mano de obra e instalación. No cubre daños por mal uso, golpes, manipulación de terceros o problemas estructurales.`;
+Garantía de 6 meses sobre mano de obra e instalación. No cubre daños por mal uso, golpes, manipulación de terceros o problemas estructurales.`);
     document.getElementById('qCondValida').checked = true;
     document.getElementById('qCondGarantia').checked = true;
     document.getElementById('qCondNoVisita').checked = false;
@@ -1491,6 +1504,7 @@ cerravolt@gmail.com`;
 
   // init de la app (formulario) — corre siempre, esté o no logueado
   document.getElementById('qDate').value = new Date().toISOString().slice(0,10);
+  try{ document.execCommand('defaultParagraphSeparator', false, 'div'); }catch(e){}
   ['cName','cAddr','cContact','qNum','qDate','qValid','qService','qServiceShow','qIva','qNotes','qCondValida','qCondGarantia','qCondNoVisita','qCond50','qCondSEC','qBankShow','qBank'].forEach(id=>{
     document.getElementById(id).addEventListener('input', update);
   });
