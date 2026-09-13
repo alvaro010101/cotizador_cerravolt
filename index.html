@@ -696,6 +696,10 @@ linaresalvaro2@gmail.com</textarea>
     { value:"negro",  label:"Negro" },
     { value:"madera", label:"Madera" }
   ];
+  const CQ_MANILLA_POS = [
+    { value:"vidrio", label:"En el vidrio" },
+    { value:"marco",  label:"En el marco" }
+  ];
   let cqState = { titulo:"", groups:[] };
 
   function cqToggle(){
@@ -715,7 +719,7 @@ linaresalvaro2@gmail.com</textarea>
   }
 
   function cqAddGroup(){
-    cqState.groups.push({ alto:2000, panels:[{ ancho:1000, tipo:"ventana", apertura:"fijo", marco:45, marcoColor:"blanco", manilla:false }] });
+    cqState.groups.push({ alto:2000, panels:[{ ancho:1000, tipo:"ventana", apertura:"fijo", marco:45, marcoColor:"blanco", manilla:false, manillaPos:"vidrio" }] });
     cqRenderControls();
     update();
   }
@@ -746,7 +750,12 @@ linaresalvaro2@gmail.com</textarea>
             <div class="field"><label>Tipo</label><select onchange="cqSetPanel(${gi},${pi},'tipo',this.value)">${cqOptionsHtml(CQ_TIPOS, panel.tipo)}</select></div>
             <div class="field"><label>Apertura</label><select onchange="cqSetPanel(${gi},${pi},'apertura',this.value)">${cqOptionsHtml(CQ_APERTURAS, panel.apertura)}</select></div>
           </div>
-          <label class="cq-marco-toggle"><input type="checkbox" ${hasManilla?'checked':''} onchange="cqSetPanel(${gi},${pi},'manilla',this.checked)"> Con manilla</label>
+          <div class="cq-marco-block">
+            <label class="cq-marco-toggle"><input type="checkbox" ${hasManilla?'checked':''} onchange="cqToggleManilla(${gi},${pi},this.checked)"> Con manilla</label>
+            ${hasManilla ? `<div class="cq-marco-detail">
+              <div class="field"><label>Posición de la manilla</label><select onchange="cqSetPanel(${gi},${pi},'manillaPos',this.value)">${cqOptionsHtml(CQ_MANILLA_POS, panel.manillaPos||'vidrio')}</select></div>
+            </div>` : ''}
+          </div>
           <div class="cq-marco-block">
             <label class="cq-marco-toggle"><input type="checkbox" ${hasMarco?'checked':''} onchange="cqToggleMarco(${gi},${pi},this.checked)"> Con marco</label>
             ${hasMarco ? `<div class="cq-marco-detail">
@@ -775,8 +784,15 @@ linaresalvaro2@gmail.com</textarea>
     cqRenderControls();
     update();
   }
+  function cqToggleManilla(gi, pi, checked){
+    const panel = cqState.groups[gi].panels[pi];
+    panel.manilla = checked;
+    if(checked && !panel.manillaPos) panel.manillaPos = 'vidrio';
+    cqRenderControls();
+    update();
+  }
   function cqAddPanel(gi){
-    cqState.groups[gi].panels.push({ ancho:500, tipo:"vidrio", apertura:"fijo", marco:0, marcoColor:"blanco", manilla:false });
+    cqState.groups[gi].panels.push({ ancho:500, tipo:"vidrio", apertura:"fijo", marco:0, marcoColor:"blanco", manilla:false, manillaPos:"vidrio" });
     cqRenderControls();
     update();
   }
@@ -891,7 +907,15 @@ linaresalvaro2@gmail.com</textarea>
         if(panel.tipo === "espejo"){
           parts.push(`<line x1="${cqFmt(innerX+innerW*0.14)}" y1="${cqFmt(innerY+innerH*0.86)}" x2="${cqFmt(innerX+innerW*0.42)}" y2="${cqFmt(innerY+innerH*0.14)}" stroke="#ffffff" stroke-width="${cqFmt(Math.max(2, Math.min(innerW,innerH)*0.025))}" stroke-opacity="0.55" stroke-linecap="round"/>`);
         }
-        if(panel.manilla){
+        if(panel.manilla && panel.manillaPos === 'marco' && marcoPx > 0.5){
+          // Manija sobre el marco: barra sólida corta embutida en el ancho del perfil.
+          const barW = marcoPx * 0.55;
+          const barH = Math.max(18, heightPx * 0.14);
+          const barX = x + wPx - marcoPx + (marcoPx - barW)/2;
+          const barY = topY + heightPx/2 - barH/2;
+          parts.push(`<rect x="${cqFmt(barX)}" y="${cqFmt(barY)}" width="${cqFmt(barW)}" height="${cqFmt(barH)}" rx="${cqFmt(Math.min(barW,3))}" fill="${CQ_INK}"/>`);
+        } else if(panel.manilla){
+          // Manija sobre el vidrio: línea + roseta, estilo manilla de puerta/ventana.
           const hx = innerX + innerW*0.86, hy = innerY + innerH*0.52;
           parts.push(`<line x1="${cqFmt(hx)}" y1="${cqFmt(innerY+4)}" x2="${cqFmt(hx)}" y2="${cqFmt(innerY+innerH-4)}" stroke="${CQ_INK}" stroke-width="1" stroke-opacity="0.55"/>`);
           parts.push(`<circle cx="${cqFmt(hx)}" cy="${cqFmt(hy)}" r="3.2" fill="${CQ_INK}"/>`);
