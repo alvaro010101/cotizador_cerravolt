@@ -161,6 +161,40 @@
     padding:10px 11px; font-size:12.5px; color:var(--steel-500); cursor:pointer;
   }
 
+  /* ---------- Croquis de aberturas (editor) ---------- */
+  .cq-group-card{
+    border:1px solid var(--line-strong); border-radius:10px; background:var(--panel-2);
+    padding:12px; display:flex; flex-direction:column; gap:10px;
+  }
+  .cq-group-head{display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;}
+  .cq-group-head .cq-name{
+    font-family:var(--mono); font-size:11px; font-weight:600; color:var(--blue-400);
+    background:rgba(46,159,224,0.12); padding:3px 8px; border-radius:999px;
+  }
+  .cq-group-alto{display:flex; align-items:center; gap:8px;}
+  .cq-group-alto label{font-size:11.5px; color:var(--steel-500); white-space:nowrap;}
+  .cq-group-alto input{width:90px;}
+  .cq-btn-remove-group{
+    background:none; border:none; color:#ff8d8d; font-size:11px; padding:2px 4px;
+    text-decoration:underline; text-underline-offset:2px; cursor:pointer;
+  }
+  .cq-panel-row{
+    display:flex; flex-direction:column; gap:8px; padding:10px;
+    background:var(--panel); border:1px solid var(--line); border-radius:8px;
+  }
+  .cq-panel-row-top{display:flex; align-items:flex-end; gap:8px;}
+  .cq-panel-row-top .field{flex:1; margin-bottom:0;}
+  .cq-panel-row .num-badge{font-family:var(--mono); font-size:11px; color:var(--steel-500); padding-bottom:9px;}
+  .cq-type-fields{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
+  .cq-type-fields .field{margin-bottom:0;}
+  .cq-marco-block{display:flex; flex-direction:column; gap:8px; border-top:1px dashed var(--line); padding-top:8px;}
+  .cq-marco-toggle{display:flex; align-items:center; gap:7px; font-size:12px; color:var(--steel-300); cursor:pointer;}
+  .cq-marco-toggle input{width:auto;}
+  .cq-marco-detail{display:flex; flex-direction:column; gap:8px;}
+  .cq-marco-detail .field{margin-bottom:0;}
+  .cq-doc-svg-wrap{display:flex; justify-content:center;}
+  .cq-doc-svg-wrap svg{max-width:100%; height:auto;}
+
   /* ---------- Preview ---------- */
   .preview-wrap{
     padding:36px; display:flex; justify-content:center;
@@ -427,6 +461,21 @@ linaresalvaro2@gmail.com</textarea>
       <div id="imagesEdit" style="margin-top:10px;"></div>
     </div>
 
+    <div class="field-group">
+      <h2>Croquis de medidas</h2>
+      <label class="checkbox-field" style="margin-bottom:12px;">
+        <input type="checkbox" id="qCroquisShow" onchange="cqToggle()"> Incluir croquis de aberturas en esta cotización
+      </label>
+      <div id="croquisEditor" style="display:none;">
+        <div class="field">
+          <label>Título / referencia del croquis (opcional)</label>
+          <input id="cqTitulo" placeholder="Ej: Fachada principal" oninput="cqSetTitulo(this.value)">
+        </div>
+        <div id="cqGroupsContainer" style="display:flex; flex-direction:column; gap:12px; margin-bottom:10px;"></div>
+        <button class="add-btn" type="button" onclick="cqAddGroup()">+ Agregar grupo de paños</button>
+      </div>
+    </div>
+
   </aside>
 
   <div class="preview-wrap">
@@ -495,6 +544,8 @@ linaresalvaro2@gmail.com</textarea>
         <h3 id="outImagesHeading">Imágenes de referencia</h3>
         <div class="doc-images-grid" id="outImagesGrid"></div>
       </div>
+
+      <div id="outCroquisSection" style="display:none;"></div>
 
       <div class="doc-footer-spacer"></div>
 
@@ -624,6 +675,282 @@ linaresalvaro2@gmail.com</textarea>
         <button class="remove-btn" onclick="removeImage(${i})">✕ quitar</button>
       </div>
     `).join('');
+  }
+
+  // ---------- Croquis de aberturas ----------
+  const CQ_TIPOS = [
+    { value:"vidrio", label:"Vidrio" },
+    { value:"ventana", label:"Ventana" },
+    { value:"puerta",  label:"Puerta" },
+    { value:"espejo",  label:"Espejo" }
+  ];
+  const CQ_APERTURAS = [
+    { value:"fijo",        label:"Fijo" },
+    { value:"corredera",   label:"Corredera" },
+    { value:"abatible",    label:"Abatible" },
+    { value:"proyectante", label:"Proyectante" }
+  ];
+  const CQ_MARCOS = [
+    { value:"blanco", label:"Blanco" },
+    { value:"gris",   label:"Gris / Plata" },
+    { value:"negro",  label:"Negro" },
+    { value:"madera", label:"Madera" }
+  ];
+  let cqState = { titulo:"", groups:[] };
+
+  function cqToggle(){
+    const on = document.getElementById('qCroquisShow').checked;
+    document.getElementById('croquisEditor').style.display = on ? 'block' : 'none';
+    if(on && cqState.groups.length === 0) cqAddGroup();
+    update();
+  }
+
+  function cqOptionsHtml(list, selected){
+    return list.map(o => `<option value="${o.value}"${o.value===selected?' selected':''}>${o.label}</option>`).join('');
+  }
+
+  function cqSetTitulo(v){
+    cqState.titulo = v;
+    update();
+  }
+
+  function cqAddGroup(){
+    cqState.groups.push({ alto:2000, panels:[{ ancho:1000, tipo:"ventana", apertura:"fijo", marco:45, marcoColor:"blanco", manilla:false }] });
+    cqRenderControls();
+    update();
+  }
+
+  function cqRenderControls(){
+    const wrap = document.getElementById('cqGroupsContainer');
+    wrap.innerHTML = cqState.groups.map((group, gi) => {
+      const hasMultiple = cqState.groups.length > 1;
+      let html = `<div class="cq-group-card" data-gi="${gi}">
+        <div class="cq-group-head">
+          <span class="cq-name">Grupo ${gi+1}</span>
+          <div class="cq-group-alto">
+            <label>Alto total (mm)</label>
+            <input type="number" min="1" step="1" class="cq-alto-input" data-gi="${gi}" value="${group.alto}" oninput="cqSetAlto(${gi}, this.value)">
+          </div>
+          ${hasMultiple ? `<button type="button" class="cq-btn-remove-group" onclick="cqRemoveGroup(${gi})">quitar grupo</button>` : ''}
+        </div>`;
+      html += group.panels.map((panel, pi) => {
+        const hasMarco = panel.marco > 0;
+        const hasManilla = !!panel.manilla;
+        return `<div class="cq-panel-row" data-gi="${gi}" data-pi="${pi}">
+          <div class="cq-panel-row-top">
+            <span class="num-badge">P${pi+1}</span>
+            <div class="field"><label>Ancho (mm)</label><input type="number" min="1" step="1" value="${panel.ancho}" oninput="cqSetPanel(${gi},${pi},'ancho',parseFloat(this.value)||1)"></div>
+            <button type="button" class="remove-btn" title="Quitar paño" onclick="cqRemovePanel(${gi},${pi})">✕</button>
+          </div>
+          <div class="cq-type-fields">
+            <div class="field"><label>Tipo</label><select onchange="cqSetPanel(${gi},${pi},'tipo',this.value)">${cqOptionsHtml(CQ_TIPOS, panel.tipo)}</select></div>
+            <div class="field"><label>Apertura</label><select onchange="cqSetPanel(${gi},${pi},'apertura',this.value)">${cqOptionsHtml(CQ_APERTURAS, panel.apertura)}</select></div>
+          </div>
+          <label class="cq-marco-toggle"><input type="checkbox" ${hasManilla?'checked':''} onchange="cqSetPanel(${gi},${pi},'manilla',this.checked)"> Con manilla</label>
+          <div class="cq-marco-block">
+            <label class="cq-marco-toggle"><input type="checkbox" ${hasMarco?'checked':''} onchange="cqToggleMarco(${gi},${pi},this.checked)"> Con marco</label>
+            ${hasMarco ? `<div class="cq-marco-detail">
+              <div class="field"><label>Ancho de marco (mm)</label><input type="number" min="1" step="1" value="${panel.marco}" oninput="cqSetPanel(${gi},${pi},'marco',parseFloat(this.value)||1)"></div>
+              <div class="field"><label>Color de marco</label><select onchange="cqSetPanel(${gi},${pi},'marcoColor',this.value)">${cqOptionsHtml(CQ_MARCOS, panel.marcoColor||'blanco')}</select></div>
+            </div>` : ''}
+          </div>
+        </div>`;
+      }).join('');
+      html += `<button type="button" class="add-btn" onclick="cqAddPanel(${gi})">+ Agregar paño a este grupo</button></div>`;
+      return html;
+    }).join('');
+  }
+
+  function cqSetAlto(gi, v){
+    const val = parseFloat(v); cqState.groups[gi].alto = (isFinite(val) && val>0) ? val : 1;
+    update();
+  }
+  function cqSetPanel(gi, pi, key, val){
+    cqState.groups[gi].panels[pi][key] = val;
+    update();
+  }
+  function cqToggleMarco(gi, pi, checked){
+    const panel = cqState.groups[gi].panels[pi];
+    panel.marco = checked ? (panel.marco > 0 ? panel.marco : 45) : 0;
+    cqRenderControls();
+    update();
+  }
+  function cqAddPanel(gi){
+    cqState.groups[gi].panels.push({ ancho:500, tipo:"vidrio", apertura:"fijo", marco:0, marcoColor:"blanco", manilla:false });
+    cqRenderControls();
+    update();
+  }
+  function cqRemovePanel(gi, pi){
+    if(cqState.groups[gi].panels.length > 1){
+      cqState.groups[gi].panels.splice(pi,1);
+      cqRenderControls();
+      update();
+    }
+  }
+  function cqRemoveGroup(gi){
+    cqState.groups.splice(gi,1);
+    cqRenderControls();
+    update();
+  }
+
+  const CQ_FILLS = { vidrio:"#d3ecf1", ventana:"#d3ecf1", puerta:"#e8ecee", espejo:"#ccd0d4" };
+  const CQ_TIPO_TAG = { vidrio:"VIDRIO", ventana:"VENTANA", puerta:"PUERTA", espejo:"ESPEJO" };
+  const CQ_MARCO_FILLS = { blanco:"#e7ebed", gris:"#b7bfc5", negro:"#33383d", madera:"#a9744a" };
+  const CQ_INK = "#243746";
+
+  function cqFmt(n){ return (Math.round(n*10)/10).toString().replace(/\.0$/,''); }
+
+  function cqDimLineH(x1, x2, y, label){
+    const tick = 5, midX = (x1+x2)/2, textW = label.length*5.6+8;
+    return `<line x1="${cqFmt(x1)}" y1="${cqFmt(y-tick)}" x2="${cqFmt(x1)}" y2="${cqFmt(y+tick)}" stroke="${CQ_INK}" stroke-width="1"/>
+      <line x1="${cqFmt(x2)}" y1="${cqFmt(y-tick)}" x2="${cqFmt(x2)}" y2="${cqFmt(y+tick)}" stroke="${CQ_INK}" stroke-width="1"/>
+      <line x1="${cqFmt(x1)}" y1="${cqFmt(y)}" x2="${cqFmt(x2)}" y2="${cqFmt(y)}" stroke="${CQ_INK}" stroke-width="1"/>
+      <rect x="${cqFmt(midX-textW/2)}" y="${cqFmt(y-8)}" width="${cqFmt(textW)}" height="14" fill="#ffffff"/>
+      <text x="${cqFmt(midX)}" y="${cqFmt(y+3)}" text-anchor="middle" font-family="monospace" font-size="10.5" fill="${CQ_INK}">${escapeHtml(label)}</text>`;
+  }
+  function cqDimLineV(x, y1, y2, label){
+    const tick = 5, midY = (y1+y2)/2, textW = label.length*5.6+8;
+    return `<line x1="${cqFmt(x-tick)}" y1="${cqFmt(y1)}" x2="${cqFmt(x+tick)}" y2="${cqFmt(y1)}" stroke="${CQ_INK}" stroke-width="1"/>
+      <line x1="${cqFmt(x-tick)}" y1="${cqFmt(y2)}" x2="${cqFmt(x+tick)}" y2="${cqFmt(y2)}" stroke="${CQ_INK}" stroke-width="1"/>
+      <line x1="${cqFmt(x)}" y1="${cqFmt(y1)}" x2="${cqFmt(x)}" y2="${cqFmt(y2)}" stroke="${CQ_INK}" stroke-width="1"/>
+      <rect x="${cqFmt(x-7)}" y="${cqFmt(midY-textW/2)}" width="14" height="${cqFmt(textW)}" fill="#ffffff"/>
+      <text x="${cqFmt(x)}" y="${cqFmt(midY)}" text-anchor="middle" font-family="monospace" font-size="10.5" fill="${CQ_INK}" transform="rotate(-90 ${cqFmt(x)} ${cqFmt(midY)})">${escapeHtml(label)}</text>`;
+  }
+
+  // Genera el SVG del croquis, ajustando automáticamente la escala al total de
+  // medidas del proyecto (ancho y alto) para que siempre quepa bien en la página.
+  function cqBuildDiagram(st){
+    const MARGIN_L = 24, MARGIN_R = 34, MARGIN_TOP = 46;
+    const DIM_V_OFFSET = 38, GROUP_GAP = 30, DIM_ROW1_H = 30, DIM_ROW2_H = 28, MARGIN_BOTTOM = 14;
+
+    const groups = st.groups.filter(g => g.panels.length > 0);
+    if(groups.length === 0) return null;
+
+    let sumMM = 0;
+    groups.forEach(g => g.panels.forEach(p => sumMM += p.ancho));
+    const TARGET_GLASS_PX = 640;
+    let S = TARGET_GLASS_PX / Math.max(sumMM, 1);
+    S = Math.max(0.02, Math.min(S, 3));
+
+    let maxHeightPx = 0;
+    groups.forEach(g => { maxHeightPx = Math.max(maxHeightPx, g.alto*S); });
+
+    let totalWidthPx = MARGIN_L + MARGIN_R + (groups.length-1)*GROUP_GAP;
+    groups.forEach(g => {
+      let gw = 0; g.panels.forEach(p => gw += p.ancho*S);
+      totalWidthPx += DIM_V_OFFSET + gw;
+    });
+    const totalHeightPx = MARGIN_TOP + maxHeightPx + DIM_ROW1_H + DIM_ROW2_H + MARGIN_BOTTOM;
+
+    const baselineY = MARGIN_TOP + maxHeightPx;
+    const parts = [`<rect x="0" y="0" width="${cqFmt(totalWidthPx)}" height="${cqFmt(totalHeightPx)}" fill="#ffffff"/>`];
+
+    if(st.titulo && st.titulo.trim()){
+      parts.push(`<text x="${cqFmt(MARGIN_L)}" y="24" font-family="sans-serif" font-size="15" font-weight="600" fill="${CQ_INK}">${escapeHtml(st.titulo.trim())}</text>`);
+    }
+
+    let x = MARGIN_L;
+    groups.forEach(group => {
+      x += DIM_V_OFFSET;
+      const groupStartX = x;
+      const heightPx = group.alto*S;
+      const topY = baselineY - heightPx;
+
+      group.panels.forEach(panel => {
+        const wPx = panel.ancho*S;
+        const fill = CQ_FILLS[panel.tipo] || "#d3ecf1";
+        let marcoPx = 0;
+        if(panel.marco > 0){
+          marcoPx = panel.marco*S;
+          marcoPx = Math.min(marcoPx, wPx*0.4, heightPx*0.4);
+        }
+        const innerX = x + marcoPx, innerY = topY + marcoPx;
+        const innerW = wPx - marcoPx*2, innerH = heightPx - marcoPx*2;
+
+        if(marcoPx > 0.5){
+          const frameFill = CQ_MARCO_FILLS[panel.marcoColor] || CQ_MARCO_FILLS.blanco;
+          parts.push(`<rect x="${cqFmt(x)}" y="${cqFmt(topY)}" width="${cqFmt(wPx)}" height="${cqFmt(heightPx)}" fill="${frameFill}" stroke="${CQ_INK}" stroke-width="1.6"/>`);
+          parts.push(`<rect x="${cqFmt(innerX)}" y="${cqFmt(innerY)}" width="${cqFmt(innerW)}" height="${cqFmt(innerH)}" fill="${fill}" stroke="${CQ_INK}" stroke-width="1.2"/>`);
+        } else {
+          parts.push(`<rect x="${cqFmt(x)}" y="${cqFmt(topY)}" width="${cqFmt(wPx)}" height="${cqFmt(heightPx)}" fill="${fill}" stroke="${CQ_INK}" stroke-width="1.6"/>`);
+        }
+
+        if(panel.apertura === "abatible"){
+          const apexY = innerY + innerH/2;
+          parts.push(`<path d="M ${cqFmt(innerX+4)} ${cqFmt(innerY+4)} L ${cqFmt(innerX+innerW-4)} ${cqFmt(apexY)} L ${cqFmt(innerX+4)} ${cqFmt(innerY+innerH-4)}" fill="none" stroke="${CQ_INK}" stroke-width="1" stroke-dasharray="5 4"/>`);
+        } else if(panel.apertura === "proyectante"){
+          const apexX = innerX + innerW/2;
+          parts.push(`<path d="M ${cqFmt(innerX+4)} ${cqFmt(innerY+innerH-4)} L ${cqFmt(apexX)} ${cqFmt(innerY+4)} L ${cqFmt(innerX+innerW-4)} ${cqFmt(innerY+innerH-4)}" fill="none" stroke="${CQ_INK}" stroke-width="1" stroke-dasharray="5 4"/>`);
+        } else if(panel.apertura === "corredera"){
+          const midY = innerY + innerH/2, ax1 = innerX + innerW*0.18, ax2 = innerX + innerW*0.82;
+          parts.push(`<line x1="${cqFmt(ax1)}" y1="${cqFmt(midY)}" x2="${cqFmt(ax2)}" y2="${cqFmt(midY)}" stroke="${CQ_INK}" stroke-width="1"/>`);
+          parts.push(`<path d="M ${cqFmt(ax1+9)} ${cqFmt(midY-5)} L ${cqFmt(ax1)} ${cqFmt(midY)} L ${cqFmt(ax1+9)} ${cqFmt(midY+5)}" fill="none" stroke="${CQ_INK}" stroke-width="1"/>`);
+          parts.push(`<path d="M ${cqFmt(ax2-9)} ${cqFmt(midY-5)} L ${cqFmt(ax2)} ${cqFmt(midY)} L ${cqFmt(ax2-9)} ${cqFmt(midY+5)}" fill="none" stroke="${CQ_INK}" stroke-width="1"/>`);
+        }
+
+        if(panel.tipo === "espejo"){
+          parts.push(`<line x1="${cqFmt(innerX+innerW*0.14)}" y1="${cqFmt(innerY+innerH*0.86)}" x2="${cqFmt(innerX+innerW*0.42)}" y2="${cqFmt(innerY+innerH*0.14)}" stroke="#ffffff" stroke-width="${cqFmt(Math.max(2, Math.min(innerW,innerH)*0.025))}" stroke-opacity="0.55" stroke-linecap="round"/>`);
+        }
+        if(panel.manilla){
+          const hx = innerX + innerW*0.86, hy = innerY + innerH*0.52;
+          parts.push(`<line x1="${cqFmt(hx)}" y1="${cqFmt(innerY+4)}" x2="${cqFmt(hx)}" y2="${cqFmt(innerY+innerH-4)}" stroke="${CQ_INK}" stroke-width="1" stroke-opacity="0.55"/>`);
+          parts.push(`<circle cx="${cqFmt(hx)}" cy="${cqFmt(hy)}" r="3.2" fill="${CQ_INK}"/>`);
+        }
+        if(innerW > 46){
+          const cx = innerX + innerW/2;
+          parts.push(`<text x="${cqFmt(cx)}" y="${cqFmt(innerY+16)}" text-anchor="middle" font-family="sans-serif" font-size="9.5" font-weight="600" letter-spacing="0.04em" fill="${CQ_INK}" fill-opacity="0.62">${CQ_TIPO_TAG[panel.tipo]}</text>`);
+        }
+
+        x += wPx;
+      });
+
+      const groupEndX = x;
+      let groupWidthMM = 0; group.panels.forEach(p => groupWidthMM += p.ancho);
+
+      let cursorX = groupStartX;
+      group.panels.forEach(panel => {
+        const wPx = panel.ancho*S;
+        parts.push(cqDimLineH(cursorX, cursorX+wPx, baselineY+DIM_ROW1_H, cqFmt(panel.ancho)+" mm"));
+        cursorX += wPx;
+      });
+      parts.push(cqDimLineH(groupStartX, groupEndX, baselineY+DIM_ROW1_H+DIM_ROW2_H, cqFmt(groupWidthMM)+" mm total"));
+
+      const vx = groupStartX - DIM_V_OFFSET/2 - 4;
+      parts.push(cqDimLineV(vx, topY, baselineY, cqFmt(group.alto)+" mm"));
+
+      x = groupEndX + GROUP_GAP;
+    });
+
+    return { width: totalWidthPx, height: totalHeightPx, svg: parts.join("\n") };
+  }
+
+  // Máximo de grupos de paños por página del croquis: si hay más, se reparten
+  // en páginas adicionales para que cada una se vea despejada y legible.
+  const CQ_GROUPS_PER_PAGE = 2;
+
+  function cqRenderDiagram(){
+    const section = document.getElementById('outCroquisSection');
+    const show = document.getElementById('qCroquisShow').checked;
+    const groups = cqState.groups.filter(g => g.panels.length > 0);
+    if(!show || groups.length === 0){
+      section.style.display = 'none';
+      section.innerHTML = '';
+      return;
+    }
+    section.style.display = 'block';
+    const pages = [];
+    for(let i = 0; i < groups.length; i += CQ_GROUPS_PER_PAGE){
+      pages.push(groups.slice(i, i + CQ_GROUPS_PER_PAGE));
+    }
+    section.innerHTML = pages.map((pageGroups, pi) => {
+      const layout = cqBuildDiagram({ titulo: pi === 0 ? cqState.titulo : '', groups: pageGroups });
+      const heading = 'Croquis de medidas' + (pages.length > 1 ? ` (${pi+1}/${pages.length})` : '');
+      return `<div class="doc-images">
+        <div class="page-break-indicator">Nueva página</div>
+        <h3>${escapeHtml(heading)}</h3>
+        <div class="cq-doc-svg-wrap"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${layout.width} ${layout.height}" width="${layout.width}" height="${layout.height}">${layout.svg}</svg></div>
+      </div>`;
+    }).join('');
   }
 
   // Tamaño dinámico de cada imagen en el documento según cuántas hay, para que
@@ -799,6 +1126,9 @@ linaresalvaro2@gmail.com</textarea>
     } else {
       imgSection.style.display = 'none';
     }
+
+    // Croquis de medidas
+    cqRenderDiagram();
   }
 
   // ---------- Persistencia (Firestore, por usuario autenticado) ----------
@@ -827,7 +1157,12 @@ linaresalvaro2@gmail.com</textarea>
       },
       bankShow: document.getElementById('qBankShow').checked,
       bank: document.getElementById('qBank').value,
-      images: images
+      images: images,
+      croquis: {
+        show: document.getElementById('qCroquisShow').checked,
+        titulo: cqState.titulo,
+        groups: cqState.groups
+      }
     };
   }
 
@@ -854,8 +1189,13 @@ Garantía de 6 meses sobre mano de obra e instalación. No cubre daños por mal 
     document.getElementById('qBankShow').checked = !!s.bankShow;
     document.getElementById('qBank').value = s.bank || '';
     images = s.images || [];
+    cqState = { titulo: s.croquis?.titulo || '', groups: s.croquis?.groups || [] };
+    document.getElementById('qCroquisShow').checked = !!s.croquis?.show;
+    document.getElementById('croquisEditor').style.display = document.getElementById('qCroquisShow').checked ? 'block' : 'none';
+    document.getElementById('cqTitulo').value = cqState.titulo;
     renderEdit();
     renderImagesEdit();
+    cqRenderControls();
     update();
   }
 
@@ -1041,8 +1381,13 @@ Cuenta Vista
 00-012-19211-24
 linaresalvaro2@gmail.com`;
     images = [];
+    cqState = { titulo:'', groups:[] };
+    document.getElementById('qCroquisShow').checked = false;
+    document.getElementById('croquisEditor').style.display = 'none';
+    document.getElementById('cqTitulo').value = '';
     renderEdit();
     renderImagesEdit();
+    cqRenderControls();
     update();
     currentNum = null;
     renderSavedResults(document.getElementById('savedSearch').value);
@@ -1074,6 +1419,7 @@ linaresalvaro2@gmail.com`;
   });
   renderEdit();
   renderImagesEdit();
+  cqRenderControls();
   update();
 
   // init de los datos — solo corre tras iniciar sesión (llamado desde onAuthStateChanged)
