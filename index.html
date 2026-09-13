@@ -109,6 +109,32 @@
   .layout{display:grid; grid-template-columns:380px 1fr; gap:0; align-items:start;}
   @media(max-width:980px){ .layout{grid-template-columns:1fr;} }
 
+  .tabs-bar{display:flex; gap:6px; padding:14px 24px 0; border-bottom:1px solid var(--line);}
+  .tab-btn{
+    font-family:var(--body); font-weight:600; font-size:13px; cursor:pointer;
+    padding:9px 16px; border-radius:8px 8px 0 0; border:1px solid transparent;
+    background:none; color:var(--steel-500);
+  }
+  .tab-btn:hover{color:var(--steel-100);}
+  .tab-btn.active{color:var(--blue-400); border-color:var(--line) var(--line) var(--bg); background:var(--panel);}
+
+  .glass-tab{padding:28px 24px; display:flex; justify-content:center;}
+  .glass-panel{
+    width:100%; max-width:820px; padding:28px; border:1px solid var(--line-strong);
+    border-radius:12px; background:var(--panel); gap:30px;
+  }
+  .glass-result{
+    margin-top:6px; padding:12px 14px; border-radius:8px; background:var(--panel-2);
+    border:1px solid var(--line-strong); display:flex; flex-direction:column; gap:6px;
+  }
+  .glass-result div{display:flex; justify-content:space-between; font-size:13px; color:var(--steel-300);}
+  .glass-result b{color:var(--steel-100); font-family:var(--mono);}
+  .glass-type-row{
+    display:flex; align-items:flex-end; gap:10px; padding:10px; border-radius:8px;
+    background:var(--panel-2); border:1px solid var(--line-strong);
+  }
+  .glass-type-row .field{flex:1; margin-bottom:0;}
+
   .panel{
     padding:24px; border-right:1px solid var(--line);
     display:flex; flex-direction:column; gap:26px;
@@ -355,7 +381,7 @@
     <span class="save-status" id="saveStatus"></span>
     <button class="btn-tb" onclick="newQuote()">+ Nueva</button>
     <button class="btn-tb" onclick="saveQuote()">💾 Guardar</button>
-    <button class="btn" onclick="window.print()">
+    <button class="btn" onclick="switchTab('cotizacion'); window.print()">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
       Imprimir / Guardar PDF
     </button>
@@ -363,7 +389,12 @@
   </div>
 </div>
 
-<div class="layout">
+<div class="tabs-bar no-print">
+  <button type="button" class="tab-btn active" id="tabBtnCotizacion" onclick="switchTab('cotizacion')">Cotización</button>
+  <button type="button" class="tab-btn" id="tabBtnVidrios" onclick="switchTab('vidrios')">🧮 Calculadora de vidrios</button>
+</div>
+
+<div class="layout" id="tabCotizacion">
 
 
   <aside class="panel no-print">
@@ -586,6 +617,42 @@ cerravolt@gmail.com</textarea>
 
 </div>
 
+<div class="glass-tab no-print" id="tabVidrios" style="display:none;">
+  <div class="panel glass-panel">
+    <div class="field-group">
+      <h2>Catálogo de vidrios</h2>
+      <p style="font-size:11.5px; color:var(--steel-500); line-height:1.6; margin:0 0 12px;">
+        Define el valor por m² de cada tipo de vidrio. Se guardan en tu cuenta y quedan disponibles para todas tus cotizaciones futuras.
+      </p>
+      <div id="glassTypesList" style="display:flex; flex-direction:column; gap:10px; margin-bottom:14px;"></div>
+      <div class="row2">
+        <div class="field"><label>Nuevo tipo de vidrio</label><input id="newGlassName" placeholder="Ej: Laminado 6+6"></div>
+        <div class="field"><label>Precio por m² (CLP)</label><input id="newGlassPrice" type="number" min="0" step="100" value="0"></div>
+      </div>
+      <button class="add-btn" type="button" onclick="addGlassType()">+ Agregar tipo de vidrio</button>
+    </div>
+
+    <div class="field-group">
+      <h2>Calculadora</h2>
+      <p style="font-size:11.5px; color:var(--steel-500); line-height:1.6; margin:0 0 12px;">
+        Calcula el costo de un vidrio según sus medidas y agrégalo directo como ítem de la cotización.
+      </p>
+      <div class="field"><label>Tipo de vidrio</label><select id="calcGlassType" class="select-field" onchange="calcGlass()"></select></div>
+      <div class="row2">
+        <div class="field"><label>Ancho (mm)</label><input id="calcW" type="number" min="0" step="1" placeholder="0" oninput="calcGlass()"></div>
+        <div class="field"><label>Alto (mm)</label><input id="calcH" type="number" min="0" step="1" placeholder="0" oninput="calcGlass()"></div>
+      </div>
+      <div class="field"><label>Cantidad</label><input id="calcQty" type="number" min="1" step="1" value="1" oninput="calcGlass()"></div>
+      <div class="glass-result">
+        <div><span>Área por unidad</span><b id="calcArea">0.00 m²</b></div>
+        <div><span>Precio por m²</span><b id="calcPriceM2">$0</b></div>
+        <div><span>Subtotal (<span id="calcQtyLabel">1</span> un.)</span><b id="calcSubtotal">$0</b></div>
+      </div>
+      <button class="btn-tb" type="button" style="margin-top:14px; justify-content:center;" onclick="addGlassCalcToQuote()">+ Agregar a la cotización</button>
+    </div>
+  </div>
+</div>
+
 </div>
 
 <script>
@@ -701,6 +768,142 @@ cerravolt@gmail.com</textarea>
     }catch(e){
       console.error('Error guardando cliente:', e);
     }
+  }
+
+  // ---------- Pestañas (Cotización / Calculadora de vidrios) ----------
+  function switchTab(tab){
+    document.getElementById('tabCotizacion').style.display = tab === 'cotizacion' ? '' : 'none';
+    document.getElementById('tabVidrios').style.display = tab === 'vidrios' ? 'flex' : 'none';
+    document.getElementById('tabBtnCotizacion').classList.toggle('active', tab === 'cotizacion');
+    document.getElementById('tabBtnVidrios').classList.toggle('active', tab === 'vidrios');
+  }
+
+  // ---------- Catálogo de vidrios y calculadora ----------
+  function userGlassRef(){
+    return db.collection('users').doc(currentUser.uid).collection('glassTypes');
+  }
+
+  let glassTypes = [];
+
+  async function refreshGlassTypes(){
+    try{
+      let snap = await userGlassRef().get();
+      if(snap.empty){
+        // Primera vez: siembra el catálogo con los dos tipos más comunes,
+        // con precio en 0 para que el usuario ingrese su propio valor por m².
+        await userGlassRef().doc('monolitico').set({ name:'Vidrio Monolítico', pricePerM2:0 });
+        await userGlassRef().doc('templado').set({ name:'Vidrio Templado', pricePerM2:0 });
+        snap = await userGlassRef().get();
+      }
+      glassTypes = snap.docs.map(d => Object.assign({ id:d.id }, d.data()));
+      glassTypes.sort((a,b) => (a.name||'').localeCompare(b.name||'', 'es'));
+    }catch(e){
+      console.error('Error leyendo catálogo de vidrios:', e);
+      glassTypes = [];
+    }
+    renderGlassTypes();
+    renderGlassCalcSelect();
+  }
+
+  function renderGlassTypes(){
+    const wrap = document.getElementById('glassTypesList');
+    if(glassTypes.length === 0){
+      wrap.innerHTML = '<p style="font-size:12.5px; color:var(--steel-500);">Sin tipos de vidrio todavía.</p>';
+      return;
+    }
+    wrap.innerHTML = glassTypes.map(g => `
+      <div class="glass-type-row">
+        <div class="field"><label>Nombre</label><input value="${escapeAttr(g.name)}" onchange="setGlassField('${g.id}','name',this.value)"></div>
+        <div class="field"><label>Precio por m² (CLP)</label><input type="number" min="0" step="100" value="${g.pricePerM2||0}" onchange="setGlassField('${g.id}','pricePerM2',parseFloat(this.value)||0)"></div>
+        <button class="remove-btn" title="Quitar tipo de vidrio" onclick="removeGlassType('${g.id}')">✕</button>
+      </div>
+    `).join('');
+  }
+
+  async function setGlassField(id, key, val){
+    const g = glassTypes.find(x => x.id === id);
+    if(!g) return;
+    g[key] = val;
+    try{
+      await userGlassRef().doc(id).set({ name:g.name, pricePerM2:g.pricePerM2||0 });
+    }catch(e){
+      console.error('Error guardando tipo de vidrio:', e);
+    }
+    renderGlassCalcSelect();
+  }
+
+  async function addGlassType(){
+    const nameEl = document.getElementById('newGlassName');
+    const priceEl = document.getElementById('newGlassPrice');
+    const name = nameEl.value.trim();
+    if(!name){ nameEl.focus(); return; }
+    const id = cliSlug(name);
+    try{
+      await userGlassRef().doc(id).set({ name, pricePerM2: parseFloat(priceEl.value) || 0 });
+      nameEl.value = '';
+      priceEl.value = '0';
+      await refreshGlassTypes();
+    }catch(e){
+      console.error('Error agregando tipo de vidrio:', e);
+      alert('No se pudo guardar el tipo de vidrio.');
+    }
+  }
+
+  async function removeGlassType(id){
+    if(!confirm('¿Quitar este tipo de vidrio del catálogo?')) return;
+    try{
+      await userGlassRef().doc(id).delete();
+      await refreshGlassTypes();
+    }catch(e){
+      console.error('Error quitando tipo de vidrio:', e);
+    }
+  }
+
+  function renderGlassCalcSelect(){
+    const sel = document.getElementById('calcGlassType');
+    const current = sel.value;
+    sel.innerHTML = glassTypes.map(g => `<option value="${escapeAttr(g.id)}">${escapeAttr(g.name)}</option>`).join('');
+    if(glassTypes.some(g => g.id === current)) sel.value = current;
+    calcGlass();
+  }
+
+  function calcGlass(){
+    const g = glassTypes.find(x => x.id === document.getElementById('calcGlassType').value) || glassTypes[0];
+    const wMM = parseFloat(document.getElementById('calcW').value) || 0;
+    const hMM = parseFloat(document.getElementById('calcH').value) || 0;
+    const qty = Math.max(1, parseInt(document.getElementById('calcQty').value) || 1);
+    const areaM2 = (wMM/1000) * (hMM/1000);
+    const priceM2 = g ? (g.pricePerM2 || 0) : 0;
+    const subtotal = areaM2 * priceM2 * qty;
+    document.getElementById('calcArea').textContent = areaM2.toFixed(2) + ' m²';
+    document.getElementById('calcPriceM2').textContent = clp(priceM2);
+    document.getElementById('calcQtyLabel').textContent = qty;
+    document.getElementById('calcSubtotal').textContent = clp(subtotal);
+  }
+
+  function addGlassCalcToQuote(){
+    const g = glassTypes.find(x => x.id === document.getElementById('calcGlassType').value);
+    if(!g){ alert('Agrega primero un tipo de vidrio con su precio por m².'); return; }
+    const wMM = parseFloat(document.getElementById('calcW').value) || 0;
+    const hMM = parseFloat(document.getElementById('calcH').value) || 0;
+    const qty = Math.max(1, parseInt(document.getElementById('calcQty').value) || 1);
+    if(wMM <= 0 || hMM <= 0){ alert('Ingresa el ancho y el alto del vidrio.'); return; }
+    const areaM2 = (wMM/1000) * (hMM/1000);
+    const unitPrice = Math.round(areaM2 * (g.pricePerM2 || 0));
+    const desc = `${g.name} ${wMM}x${hMM}mm (${areaM2.toFixed(2)} m²)`;
+    if(items.length === 1 && !items[0].desc && !items[0].price){
+      items[0] = { desc, qty, price: unitPrice };
+    } else {
+      items.push({ desc, qty, price: unitPrice });
+    }
+    renderEdit();
+    update();
+    document.getElementById('calcW').value = '';
+    document.getElementById('calcH').value = '';
+    document.getElementById('calcQty').value = '1';
+    calcGlass();
+    showSaveStatus('Vidrio agregado a la cotización');
+    switchTab('cotizacion');
   }
 
   let items = [
@@ -1535,6 +1738,7 @@ cerravolt@gmail.com`;
   async function initAppData(){
     await refreshSavedList();
     await refreshClientsList();
+    await refreshGlassTypes();
     if(!document.getElementById('qNum').value){
       document.getElementById('qNum').value = await nextQuoteNumber();
       update();
