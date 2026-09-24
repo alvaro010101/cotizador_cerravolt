@@ -381,7 +381,7 @@
     <span class="save-status" id="saveStatus"></span>
     <button class="btn-tb" onclick="newQuote()">+ Nueva</button>
     <button class="btn-tb" onclick="saveQuote()">💾 Guardar</button>
-    <button class="btn" onclick="switchTab('cotizacion'); window.print()">
+    <button class="btn" onclick="printQuote()">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
       Imprimir / Guardar PDF
     </button>
@@ -486,7 +486,7 @@
         <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="qnCmd('underline')" title="Subrayado"><u>S</u></button>
         <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="qnCmd('insertUnorderedList')" title="Lista con viñetas">• Lista</button>
         <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="qnCmd('insertOrderedList')" title="Lista numerada">1. Lista</button>
-        <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="qnCmd('removeFormat')" title="Quitar formato">Limpiar</button>
+        <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="qnClearAll()" title="Vaciar todo el contenido de este campo">Vaciar</button>
       </div>
       <div id="qNotes" class="rich-editor" contenteditable="true" data-placeholder="Ej: Traslado incluido solo dentro de la comuna"></div>
     </div>
@@ -757,7 +757,7 @@ cerravolt@gmail.com</textarea>
   // clientes, para poder reutilizarlo desde el desplegable en cotizaciones futuras.
   async function saveClientFromForm(){
     const name = document.getElementById('cName').value.trim();
-    if(!name) return;
+    if(!name) return true;
     const addr = document.getElementById('cAddr').value.trim();
     const contact = document.getElementById('cContact').value.trim();
     const id = cliSlug(name);
@@ -765,8 +765,10 @@ cerravolt@gmail.com</textarea>
       await userClientsRef().doc(id).set({ name, addr, contact });
       await refreshClientsList();
       document.getElementById('clientSelect').value = id;
+      return true;
     }catch(e){
       console.error('Error guardando cliente:', e);
+      return false;
     }
   }
 
@@ -828,6 +830,7 @@ cerravolt@gmail.com</textarea>
       await userGlassRef().doc(id).set({ name:g.name, pricePerM2:g.pricePerM2||0 });
     }catch(e){
       console.error('Error guardando tipo de vidrio:', e);
+      alert('No se pudo guardar el cambio: ' + (e.message || e));
     }
     renderGlassCalcSelect();
   }
@@ -845,7 +848,7 @@ cerravolt@gmail.com</textarea>
       await refreshGlassTypes();
     }catch(e){
       console.error('Error agregando tipo de vidrio:', e);
-      alert('No se pudo guardar el tipo de vidrio.');
+      alert('No se pudo guardar el tipo de vidrio: ' + (e.message || e));
     }
   }
 
@@ -1303,6 +1306,13 @@ cerravolt@gmail.com</textarea>
     update();
   }
 
+  function qnClearAll(){
+    const el = document.getElementById('qNotes');
+    el.innerHTML = '';
+    el.focus();
+    update();
+  }
+
   function addItem(){
     items.push({ desc:'', qty:1, price:0 });
     renderEdit();
@@ -1623,12 +1633,26 @@ Garantía de 6 meses sobre mano de obra e instalación. No cubre daños por mal 
       await userQuotesRef().doc(num).set(state);
       currentNum = num;
       await refreshSavedList();
-      await saveClientFromForm();
-      showSaveStatus('Guardado ✓ N° ' + num);
+      const clientOk = await saveClientFromForm();
+      showSaveStatus(clientOk ? ('Guardado ✓ N° ' + num) : ('Guardado ✓ N° ' + num + ' (⚠️ cliente no se pudo guardar en la libreta)'));
     }catch(e){
       console.error('Error guardando:', e);
       alert('No se pudo guardar la cotización. Revisa tu conexión e intenta nuevamente.');
     }
+  }
+
+  // Antes de imprimir/generar el PDF, guarda siempre la cotización para que
+  // los datos nunca se pierdan aunque el usuario no haya presionado Guardar.
+  // También fija el título del documento a "CerraVolt - N°" para que ese sea
+  // el nombre de archivo sugerido al guardar como PDF desde el diálogo de impresión.
+  async function printQuote(){
+    switchTab('cotizacion');
+    await saveQuote();
+    const num = document.getElementById('qNum').value.trim();
+    const prevTitle = document.title;
+    if(num) document.title = 'CerraVolt - ' + num;
+    window.print();
+    document.title = prevTitle;
   }
 
   async function loadQuoteByNum(num){
