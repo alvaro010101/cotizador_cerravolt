@@ -154,6 +154,14 @@
   .field textarea{resize:vertical; min-height:90px; line-height:1.5;}
   .row2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
 
+  .cond-row{display:flex; align-items:flex-start; gap:6px; margin-bottom:10px;}
+  .cond-row .checkbox-field{flex:1; align-items:flex-start;}
+  .cond-add{display:flex; flex-direction:column; gap:8px; margin:4px 0 16px;}
+  .cond-add input{
+    width:100%; background:var(--panel-2); border:1px solid var(--line-strong);
+    border-radius:8px; padding:9px 11px; font-size:13px; color:var(--steel-100);
+  }
+  .cond-add input:focus{outline:none; border-color:var(--blue-500);}
   .rich-toolbar{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px;}
   .rt-btn{
     font-size:11.5px; padding:4px 10px; border-radius:6px; min-width:26px;
@@ -351,6 +359,523 @@
     .doc-footer-spacer{display:block; height:28mm;}
   }
   .doc-footer-spacer{display:none;}
+
+  /* ---------- Agenda integrada (CSS aislado bajo #agendaRoot) ---------- */
+
+  
+
+  #agendaRoot{
+    --ink:#07142a;
+    --ink-soft:#4a5b73;
+    --ink-faint:#7c8ba3;
+    --paper:#eef3f9;
+    --surface:#ffffff;
+    --surface-2:#f6f9fc;
+    --border:#e2e8f0;
+    --border-soft:#edf1f6;
+    --accent:#2e9fe0;
+    --accent-strong:#1a8fd1;
+    --accent-soft:#e6f4fd;
+    --amber:#f5a623;
+    --amber-ink:#8a5c07;
+    --amber-soft:#fdf1dc;
+    --green:#12a06d;
+    --green-ink:#0d6b4a;
+    --green-soft:#e1f6ee;
+    --danger:#e0524a;
+    --danger-soft:#fceceb;
+    --shadow:rgba(7,20,42,.10);
+    --radius-lg:18px;
+    --radius-md:12px;
+    --radius-sm:8px;
+    --font-display:'Space Grotesk', system-ui, sans-serif;
+    --font-body:'Inter', system-ui, sans-serif;
+    --font-mono:'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    #agendaRoot{
+      --ink:#eaf2fb;
+      --ink-soft:#a9bbd4;
+      --ink-faint:#71839f;
+      --paper:#071627;
+      --surface:#0d2038;
+      --surface-2:#0a1a2e;
+      --border:#1d3654;
+      --border-soft:#162a43;
+      --accent:#4fc3f7;
+      --accent-strong:#78d2f8;
+      --accent-soft:#123049;
+      --amber:#f5b657;
+      --amber-ink:#f5b657;
+      --amber-soft:#2b2210;
+      --green:#3fcd9a;
+      --green-ink:#3fcd9a;
+      --green-soft:#0e2b22;
+      --danger:#f08b85;
+      --danger-soft:#2c1616;
+      --shadow:rgba(0,0,0,.45);
+    }
+  }
+  #agendaRoot, #agendaRoot *{box-sizing:border-box;}
+  #agendaRoot{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--font-body);
+    -webkit-font-smoothing:antialiased;
+  }
+  #agendaRoot h1, #agendaRoot h2, #agendaRoot h3, #agendaRoot .display{ font-family:var(--font-display); text-wrap:balance; }
+  #agendaRoot .mono{ font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
+  #agendaRoot button{ font-family:inherit; }
+  #agendaRoot a{ color:var(--accent-strong); }
+  #agendaRoot ::selection{ background:var(--accent-soft); }
+  #agendaRoot :focus-visible{ outline:2px solid var(--accent); outline-offset:2px; border-radius:4px; }
+
+  #agendaRoot .app{ display:flex; min-height:100vh; }
+  #agendaRoot .app[hidden], #agendaRoot .login-screen[hidden]{ display:none; }
+
+  /* ---------- Sidebar ---------- */
+  #agendaRoot .sidebar{
+    width:296px; flex-shrink:0;
+    background:var(--surface-2);
+    border-right:1px solid var(--border);
+    padding:24px 20px 28px;
+    display:flex; flex-direction:column; gap:22px;
+  }
+  #agendaRoot .brand{ display:flex; align-items:center; gap:10px; }
+  #agendaRoot .brand-mark{
+    width:34px; height:34px; border-radius:9px;
+    background:linear-gradient(155deg, var(--accent), var(--accent-strong));
+    display:flex; align-items:center; justify-content:center;
+    color:#fff; font-family:var(--font-display); font-weight:700; font-size:15px;
+    flex-shrink:0;
+  }
+  #agendaRoot .brand-text{ line-height:1.15; }
+  #agendaRoot .brand-text .name{ font-family:var(--font-display); font-weight:700; font-size:16.5px; letter-spacing:.2px; }
+  #agendaRoot .brand-text .sub{ font-size:11.5px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.08em; }
+
+  #agendaRoot .btn{
+    appearance:none; border:1px solid transparent; cursor:pointer;
+    border-radius:var(--radius-sm); font-weight:600; font-size:13.5px;
+    padding:10px 14px; display:inline-flex; align-items:center; justify-content:center; gap:7px;
+    transition:transform .12s ease, background .15s ease, border-color .15s ease, opacity .15s ease;
+  }
+  #agendaRoot .btn:active{ transform:scale(.97); }
+  #agendaRoot .btn-primary{ background:var(--accent); color:#fff; }
+  #agendaRoot .btn-primary:hover{ background:var(--accent-strong); }
+  #agendaRoot .btn-block{ width:100%; }
+  #agendaRoot .btn-ghost{ background:transparent; color:var(--ink-soft); border-color:var(--border); }
+  #agendaRoot .btn-ghost:hover{ border-color:var(--accent); color:var(--accent-strong); }
+  #agendaRoot .btn-soft{ background:var(--accent-soft); color:var(--accent-strong); }
+  #agendaRoot .btn-soft:hover{ opacity:.85; }
+  #agendaRoot .btn-danger{ background:var(--danger-soft); color:var(--danger); }
+  #agendaRoot .btn-danger:hover{ opacity:.85; }
+  #agendaRoot .btn-sm{ padding:6px 10px; font-size:12.5px; }
+  #agendaRoot .btn[disabled]{ opacity:.5; cursor:not-allowed; }
+  #agendaRoot .icon-btn{
+    width:30px; height:30px; border-radius:8px; border:1px solid var(--border);
+    background:var(--surface); color:var(--ink-soft); display:flex; align-items:center; justify-content:center;
+    cursor:pointer; flex-shrink:0;
+  }
+  #agendaRoot .icon-btn:hover{ border-color:var(--accent); color:var(--accent-strong); }
+
+  /* mini calendar */
+  #agendaRoot .minical{ display:flex; flex-direction:column; gap:10px; }
+  #agendaRoot .minical-head{ display:flex; align-items:center; justify-content:space-between; }
+  #agendaRoot .minical-title{ font-family:var(--font-display); font-weight:600; font-size:13.5px; text-transform:capitalize; }
+  #agendaRoot .minical-nav{ display:flex; gap:4px; }
+  #agendaRoot .minical-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:3px; }
+  #agendaRoot .minical-dow{ font-size:10px; color:var(--ink-faint); text-align:center; padding-bottom:2px; text-transform:uppercase; letter-spacing:.04em; }
+  #agendaRoot .minical-cell{
+    position:relative; aspect-ratio:1; display:flex; align-items:center; justify-content:center;
+    font-size:12px; border-radius:8px; cursor:pointer; color:var(--ink);
+    border:1px solid transparent; background:none;
+  }
+  #agendaRoot .minical-cell.out{ color:var(--ink-faint); opacity:.45; }
+  #agendaRoot .minical-cell:hover{ background:var(--border-soft); }
+  #agendaRoot .minical-cell.today{ border-color:var(--accent); font-weight:700; }
+  #agendaRoot .minical-cell.selected{ background:var(--accent); color:#fff; font-weight:700; }
+  #agendaRoot .minical-cell.selected:hover{ background:var(--accent); }
+  #agendaRoot .minical-dot{
+    position:absolute; bottom:3px; left:50%; transform:translateX(-50%);
+    width:4px; height:4px; border-radius:50%; background:var(--accent);
+  }
+  #agendaRoot .minical-cell.selected .minical-dot{ background:#fff; }
+
+  #agendaRoot .side-summary{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-md);
+    padding:14px 16px; display:flex; flex-direction:column; gap:10px;
+  }
+  #agendaRoot .side-summary-title{ font-size:11.5px; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-faint); font-weight:600; }
+  #agendaRoot .side-summary-row{ display:flex; align-items:baseline; justify-content:space-between; font-size:13px; }
+  #agendaRoot .side-summary-row .v{ font-family:var(--font-mono); font-weight:600; }
+  #agendaRoot .side-summary-row .v.amber{ color:var(--amber-ink); }
+  #agendaRoot .side-summary-row .v.green{ color:var(--green-ink); }
+
+  #agendaRoot .sidebar-footer{ margin-top:auto; font-size:11px; color:var(--ink-faint); display:flex; align-items:center; justify-content:space-between; gap:8px; }
+
+  /* login */
+  #agendaRoot .login-screen{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; background:var(--paper); }
+  #agendaRoot .login-card{
+    width:100%; max-width:360px; background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius-lg); padding:32px 28px; display:flex; flex-direction:column; gap:16px;
+    box-shadow:0 20px 50px var(--shadow);
+  }
+  #agendaRoot .login-card .brand{ justify-content:center; }
+  #agendaRoot .login-card .sub-msg{ font-size:13px; color:var(--ink-faint); text-align:center; margin:-6px 0 2px; }
+  #agendaRoot .login-form{ display:flex; flex-direction:column; gap:14px; }
+
+  /* ---------- Main ---------- */
+  #agendaRoot .main{ flex:1; min-width:0; padding:26px 34px 40px; display:flex; flex-direction:column; gap:20px; }
+
+  #agendaRoot .tabs{ display:flex; gap:4px; border-bottom:1px solid var(--border); }
+  #agendaRoot .tab{
+    padding:9px 4px; margin-right:18px; font-size:14px; font-weight:600; color:var(--ink-faint);
+    background:none; border:none; cursor:pointer; border-bottom:2px solid transparent; position:relative; top:1px;
+  }
+  #agendaRoot .tab.active{ color:var(--ink); border-bottom-color:var(--accent); }
+  #agendaRoot .tab .count{ font-family:var(--font-mono); font-size:11px; color:var(--ink-faint); margin-left:4px; }
+
+  #agendaRoot .agenda-header{ display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+  #agendaRoot .agenda-header-right{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  #agendaRoot .date-nav{ display:flex; align-items:center; gap:10px; }
+  #agendaRoot .date-title{ font-family:var(--font-display); font-weight:700; font-size:22px; }
+  #agendaRoot .date-title .yr{ color:var(--ink-faint); font-weight:500; }
+  #agendaRoot .chip-row{ display:flex; gap:8px; flex-wrap:wrap; }
+  #agendaRoot .view-switch{ display:flex; gap:2px; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:2px; flex-shrink:0; }
+  #agendaRoot .view-switch button{
+    border:none; background:none; padding:6px 13px; border-radius:6px; font-size:12.5px; font-weight:600;
+    color:var(--ink-soft); cursor:pointer; font-family:inherit;
+  }
+  #agendaRoot .view-switch button.active{ background:var(--surface); color:var(--ink); box-shadow:0 1px 3px var(--shadow); }
+  #agendaRoot .chip{
+    display:inline-flex; align-items:center; gap:6px; padding:5px 11px; border-radius:999px;
+    font-size:12.5px; font-weight:600; background:var(--surface-2); border:1px solid var(--border); color:var(--ink-soft);
+  }
+  #agendaRoot .chip .dot{ width:6px; height:6px; border-radius:50%; }
+  #agendaRoot .chip.amber .dot{ background:var(--amber); }
+  #agendaRoot .chip.green .dot{ background:var(--green); }
+  #agendaRoot .chip .val{ font-family:var(--font-mono); }
+
+  #agendaRoot .agenda-list{ display:flex; flex-direction:column; gap:10px; }
+  #agendaRoot .agenda-list[hidden], #agendaRoot .week-grid[hidden], #agendaRoot .month-grid[hidden]{ display:none; }
+
+  #agendaRoot .service-card{
+    display:flex; gap:16px; align-items:stretch;
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-md);
+    padding:14px 16px; cursor:pointer; transition:border-color .15s ease, box-shadow .15s ease, transform .1s ease;
+    text-align:left; width:100%;
+  }
+  #agendaRoot .service-card:hover{ border-color:var(--accent); box-shadow:0 6px 18px var(--shadow); transform:translateY(-1px); }
+  #agendaRoot .done-toggle{
+    width:22px; height:22px; border-radius:50%; border:2px solid var(--border); background:var(--surface);
+    display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; align-self:center;
+    color:transparent; transition:background .15s ease, border-color .15s ease; padding:0;
+  }
+  #agendaRoot .done-toggle:hover{ border-color:var(--accent); }
+  #agendaRoot .done-toggle.checked{ background:var(--accent); border-color:var(--accent); color:#fff; }
+  #agendaRoot .done-toggle svg{ width:12px; height:12px; display:block; }
+  #agendaRoot .service-card.is-done{ opacity:.65; }
+  #agendaRoot .service-card.is-done .service-client, #agendaRoot .service-card.is-done .service-desc, #agendaRoot .service-card.is-done .service-time .t{
+    text-decoration:line-through;
+  }
+  #agendaRoot .service-time{
+    width:64px; flex-shrink:0; display:flex; flex-direction:column; justify-content:center; gap:4px;
+    border-right:1px solid var(--border-soft); padding-right:14px;
+  }
+  #agendaRoot .service-time .t{ font-family:var(--font-mono); font-weight:600; font-size:15px; }
+  #agendaRoot .service-time .tech{
+    font-size:10.5px; color:var(--accent-strong); background:var(--accent-soft); border-radius:6px;
+    padding:2px 6px; width:fit-content; font-weight:600; max-width:64px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  #agendaRoot .service-body{ flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; justify-content:center; }
+  #agendaRoot .service-client{ font-weight:700; font-size:14.5px; }
+  #agendaRoot .track-code{
+    font-family:var(--font-mono); font-size:10px; font-weight:600; color:var(--ink-faint);
+    background:var(--surface-2); border:1px solid var(--border); border-radius:5px; padding:1px 6px; margin-left:6px; vertical-align:middle;
+  }
+  #agendaRoot .service-desc{ font-size:12.5px; color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #agendaRoot .service-addr{ font-size:12px; color:var(--ink-faint); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #agendaRoot .service-right{ flex-shrink:0; display:flex; flex-direction:column; align-items:flex-end; justify-content:center; gap:6px; }
+  #agendaRoot .amount{ font-family:var(--font-mono); font-weight:700; font-size:14.5px; }
+  #agendaRoot .status-pill{
+    font-size:11px; font-weight:700; padding:3px 9px; border-radius:999px; white-space:nowrap;
+  }
+  #agendaRoot .status-pill.pendiente{ background:var(--amber-soft); color:var(--amber-ink); }
+  #agendaRoot .status-pill.pagado{ background:var(--green-soft); color:var(--green-ink); }
+  #agendaRoot .status-pill.realizado{ background:var(--accent-soft); color:var(--accent-strong); }
+  #agendaRoot .status-pill.facturado{ background:var(--green-soft); color:var(--green-ink); }
+  #agendaRoot .status-pill.sinfactura{ background:var(--surface-2); color:var(--ink-faint); border:1px solid var(--border); }
+  #agendaRoot .status-pill.porhacer{ background:var(--surface-2); color:var(--ink-faint); border:1px solid var(--border); }
+  #agendaRoot .button-row{ display:flex; gap:8px; flex-wrap:wrap; }
+  #agendaRoot .button-row .btn{ flex:1; white-space:nowrap; }
+
+  /* WhatsApp actions */
+  #agendaRoot .wa-row{ display:flex; gap:6px; }
+  #agendaRoot .wa-btn{
+    width:26px; height:26px; border-radius:50%; background:#25D366; display:flex; align-items:center; justify-content:center;
+    flex-shrink:0; text-decoration:none; transition:background .15s ease, transform .1s ease; cursor:pointer;
+  }
+  #agendaRoot .wa-btn:hover{ background:#1ebd5b; transform:translateY(-1px); }
+  #agendaRoot .wa-btn svg{ width:14px; height:14px; fill:#fff; display:block; }
+  #agendaRoot .wa-btn.off{ background:var(--border-soft); pointer-events:none; }
+  #agendaRoot .wa-btn.off svg{ fill:var(--ink-faint); }
+  #agendaRoot .wa-actions{ display:flex; gap:10px; flex-wrap:wrap; padding:2px 0 4px; }
+  #agendaRoot .btn-wa{
+    display:inline-flex; align-items:center; gap:7px; padding:9px 14px; border-radius:var(--radius-sm);
+    background:#25D366; color:#fff; font-weight:600; font-size:12.5px; text-decoration:none; border:none; cursor:pointer;
+    flex:1; justify-content:center; white-space:nowrap;
+  }
+  #agendaRoot .btn-wa:hover{ background:#1ebd5b; }
+  #agendaRoot .btn-wa svg{ width:15px; height:15px; fill:#fff; flex-shrink:0; }
+  #agendaRoot .btn-wa.off{ background:var(--border-soft); color:var(--ink-faint); pointer-events:none; }
+  #agendaRoot .btn-wa.off svg{ fill:var(--ink-faint); }
+  #agendaRoot .wa-hint{ font-size:11px; color:var(--ink-faint); margin-top:-6px; }
+
+  /* week view */
+  #agendaRoot .week-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:10px; align-items:start; }
+  #agendaRoot .week-col{ display:flex; flex-direction:column; gap:6px; min-height:120px; }
+  #agendaRoot .week-col-head{ text-align:center; padding:6px 0; border-radius:8px; cursor:pointer; }
+  #agendaRoot .week-col-head:hover{ background:var(--border-soft); }
+  #agendaRoot .week-col-head.today{ background:var(--accent-soft); }
+  #agendaRoot .week-col-head .wd{ font-size:10px; text-transform:uppercase; color:var(--ink-faint); letter-spacing:.05em; }
+  #agendaRoot .week-col-head .wn{ font-size:16px; font-weight:700; font-family:var(--font-display); }
+  #agendaRoot .week-col-body{ display:flex; flex-direction:column; gap:5px; }
+  #agendaRoot .wchip{
+    background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--accent); border-radius:6px;
+    padding:5px 7px; cursor:pointer; font-size:11px; display:flex; flex-direction:column; gap:1px; text-align:left;
+    width:100%; font-family:inherit;
+  }
+  #agendaRoot .wchip:hover{ border-color:var(--accent); }
+  #agendaRoot .wchip.pendiente{ border-left-color:var(--amber); }
+  #agendaRoot .wchip.pagado{ border-left-color:var(--green); }
+  #agendaRoot .wchip.is-done{ opacity:.6; }
+  #agendaRoot .wchip.is-done .wchip-name{ text-decoration:line-through; }
+  #agendaRoot .wchip-time{ font-weight:700; font-family:var(--font-mono); }
+  #agendaRoot .wchip-name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #agendaRoot .week-col-empty{ font-size:10.5px; color:var(--ink-faint); text-align:center; padding-top:6px; }
+
+  /* month view */
+  #agendaRoot .month-grid{
+    display:grid; grid-template-columns:repeat(7,1fr); gap:1px; background:var(--border);
+    border:1px solid var(--border); border-radius:var(--radius-md); overflow:hidden;
+  }
+  #agendaRoot .month-dow{ background:var(--surface-2); text-align:center; font-size:10px; text-transform:uppercase; color:var(--ink-faint); padding:7px 0; letter-spacing:.05em; }
+  #agendaRoot .month-cell{
+    background:var(--surface); min-height:98px; padding:6px; display:flex; flex-direction:column; gap:3px;
+    cursor:pointer; border:none; text-align:left; font-family:inherit; width:100%;
+  }
+  #agendaRoot .month-cell:hover{ background:var(--surface-2); }
+  #agendaRoot .month-cell.out{ background:var(--surface-2); opacity:.55; }
+  #agendaRoot .month-cell .mn{
+    font-size:12px; font-weight:600; color:var(--ink-soft); align-self:flex-end; width:22px; height:22px;
+    display:flex; align-items:center; justify-content:center; border-radius:50%; flex-shrink:0;
+  }
+  #agendaRoot .month-cell.today .mn{ background:var(--accent); color:#fff; }
+  #agendaRoot .month-cell.selected{ box-shadow:inset 0 0 0 2px var(--accent); }
+  #agendaRoot .month-chip{
+    font-size:10px; padding:2px 5px; border-radius:4px; background:var(--accent-soft); color:var(--accent-strong);
+    border-left:2px solid var(--accent); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:pointer;
+  }
+  #agendaRoot .month-chip.pendiente{ background:var(--amber-soft); color:var(--amber-ink); border-left-color:var(--amber); }
+  #agendaRoot .month-chip.pagado{ background:var(--green-soft); color:var(--green-ink); border-left-color:var(--green); }
+  #agendaRoot .month-chip.is-done{ opacity:.55; text-decoration:line-through; }
+  #agendaRoot .month-more{ font-size:10px; color:var(--ink-faint); padding-left:3px; }
+
+  /* pagos tab */
+  #agendaRoot .pagos-wrap{ display:flex; gap:24px; align-items:flex-start; flex-wrap:wrap; }
+  #agendaRoot .pagos-filters{ width:300px; flex-shrink:0; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-md); padding:18px; display:flex; flex-direction:column; gap:14px; }
+  #agendaRoot .pagos-filters input[type="date"]{ min-width:0; min-height:38px; }
+  #agendaRoot .pagos-results{ flex:1; min-width:280px; }
+  #agendaRoot .pay-check{ display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--ink-soft); cursor:pointer; }
+  #agendaRoot .pay-summary{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:22px 24px; display:flex; flex-direction:column; gap:16px; }
+  #agendaRoot .pay-stat-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:12px; }
+  #agendaRoot .pay-stat{ background:var(--surface-2); border-radius:var(--radius-sm); padding:12px 14px; }
+  #agendaRoot .pay-stat .l{ font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-faint); margin-bottom:4px; }
+  #agendaRoot .pay-stat .v{ font-family:var(--font-mono); font-weight:700; font-size:18px; }
+  #agendaRoot .pay-table-wrap{ overflow-x:auto; }
+  #agendaRoot .pay-table{ width:100%; border-collapse:collapse; font-size:12.5px; }
+  #agendaRoot .pay-table th{ text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-faint); padding:6px 8px; border-bottom:1px solid var(--border); white-space:nowrap; }
+  #agendaRoot .pay-table td{ padding:8px; border-bottom:1px solid var(--border-soft); white-space:nowrap; }
+
+  #agendaRoot .empty-state{
+    border:1.5px dashed var(--border); border-radius:var(--radius-lg); padding:44px 24px;
+    display:flex; flex-direction:column; align-items:center; gap:12px; text-align:center; color:var(--ink-faint);
+  }
+  #agendaRoot .empty-state .glyph{ font-size:26px; }
+  #agendaRoot .empty-state .msg{ font-size:14px; color:var(--ink-soft); max-width:280px; }
+
+  /* clients tab */
+  #agendaRoot .clients-wrap{ display:flex; gap:24px; align-items:flex-start; }
+  #agendaRoot .clients-list{ width:320px; flex-shrink:0; display:flex; flex-direction:column; gap:10px; }
+  #agendaRoot .list-toolbar{ display:flex; gap:8px; }
+  #agendaRoot .search-input{
+    width:100%; padding:9px 12px; border-radius:var(--radius-sm); border:1px solid var(--border);
+    background:var(--surface); color:var(--ink); font-size:13.5px;
+  }
+  #agendaRoot .list-toolbar .search-input{ flex:1; min-width:0; }
+  #agendaRoot .search-input:focus{ border-color:var(--accent); }
+  #agendaRoot .client-row{
+    display:flex; flex-direction:column; gap:2px; padding:11px 13px; border-radius:var(--radius-sm);
+    border:1px solid var(--border); background:var(--surface); cursor:pointer; text-align:left;
+  }
+  #agendaRoot .client-row:hover{ border-color:var(--accent); }
+  #agendaRoot .client-row.active{ border-color:var(--accent); background:var(--accent-soft); }
+  #agendaRoot .client-row .cn{ font-weight:700; font-size:13.5px; }
+  #agendaRoot .client-row .cp{ font-family:var(--font-mono); font-size:11.5px; color:var(--ink-faint); }
+  #agendaRoot .client-detail{ flex:1; min-width:0; }
+  #agendaRoot .client-card{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:22px 24px; display:flex; flex-direction:column; gap:16px; }
+  #agendaRoot .client-card h2{ margin:0; font-size:20px; }
+  #agendaRoot .kv-grid{ display:grid; grid-template-columns:auto 1fr; gap:8px 16px; font-size:13.5px; }
+  #agendaRoot .kv-grid .k{ color:var(--ink-faint); }
+  #agendaRoot .kv-grid .v{ font-weight:500; }
+  #agendaRoot .client-history{ display:flex; flex-direction:column; gap:8px; margin-top:4px; }
+  #agendaRoot .client-history h3{ font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-faint); margin:0 0 2px; }
+
+  /* ---------- Modal ---------- */
+  #agendaRoot .overlay{
+    position:fixed; inset:0; background:rgba(7,15,28,.5); backdrop-filter:blur(2px);
+    display:flex; align-items:center; justify-content:center; padding:20px; z-index:50;
+  }
+  #agendaRoot .overlay[hidden]{ display:none; }
+  #agendaRoot .modal{
+    background:var(--surface); border-radius:var(--radius-lg); width:100%; max-width:520px;
+    max-height:88vh; overflow-y:auto; box-shadow:0 20px 60px var(--shadow); border:1px solid var(--border);
+  }
+  #agendaRoot .modal-head{ display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:1px solid var(--border-soft); position:sticky; top:0; background:var(--surface); z-index:1; }
+  #agendaRoot .modal-head h2{ margin:0; font-size:17px; }
+  #agendaRoot .modal-body{ padding:20px 22px 22px; display:flex; flex-direction:column; gap:14px; }
+  #agendaRoot .field{ display:flex; flex-direction:column; gap:5px; }
+  #agendaRoot .field label{ font-size:12px; font-weight:600; color:var(--ink-soft); }
+  #agendaRoot .field input, #agendaRoot .field select, #agendaRoot .field textarea{
+    padding:9px 11px; border-radius:var(--radius-sm); border:1px solid var(--border);
+    background:var(--surface-2); color:var(--ink); font-size:13.5px; font-family:inherit; width:100%;
+  }
+  #agendaRoot .field textarea{ resize:vertical; min-height:56px; }
+  #agendaRoot .field input:focus, #agendaRoot .field select:focus, #agendaRoot .field textarea:focus{ border-color:var(--accent); background:var(--surface); }
+  #agendaRoot .field-row{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  #agendaRoot .field-hint{ font-size:11px; color:var(--ink-faint); }
+  #agendaRoot .field-inline{ display:flex; gap:8px; }
+  #agendaRoot .field-inline input{ flex:1; min-width:0; }
+
+  /* combobox (técnico) */
+  #agendaRoot .combo{ position:relative; }
+  #agendaRoot .combo-panel{
+    position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:6;
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-sm);
+    box-shadow:0 12px 28px var(--shadow); max-height:216px; overflow-y:auto; padding:6px;
+    display:flex; flex-direction:column; gap:2px;
+  }
+  #agendaRoot .combo-panel[hidden]{ display:none; }
+  #agendaRoot .combo-item{
+    display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%;
+    padding:8px 10px; border-radius:6px; cursor:pointer; background:none; border:none;
+    text-align:left; font-size:13px; color:var(--ink); font-family:inherit;
+  }
+  #agendaRoot .combo-item:hover{ background:var(--accent-soft); }
+  #agendaRoot .combo-item .spec{ font-size:10px; color:var(--ink-faint); background:var(--surface-2); border-radius:999px; padding:1px 7px; flex-shrink:0; }
+  #agendaRoot .combo-empty{ padding:8px 10px; font-size:12px; color:var(--ink-faint); }
+  #agendaRoot .combo-add{
+    display:block; width:100%; text-align:left; padding:8px 10px; border-radius:6px; border:none; cursor:pointer;
+    background:var(--accent-soft); color:var(--accent-strong); font-size:12.5px; font-weight:600; font-family:inherit;
+  }
+  #agendaRoot .combo-add:hover{ opacity:.85; }
+  #agendaRoot .modal-actions{ display:flex; gap:10px; justify-content:flex-end; padding-top:6px; }
+  #agendaRoot .form-error{ font-size:12.5px; color:var(--danger); display:none; }
+  #agendaRoot .form-error.show{ display:block; }
+
+  /* detail modal */
+  #agendaRoot .detail-row{ display:flex; gap:12px; align-items:flex-start; padding:10px 0; border-bottom:1px solid var(--border-soft); }
+  #agendaRoot .detail-row:last-child{ border-bottom:none; }
+  #agendaRoot .detail-icon{ width:20px; text-align:center; flex-shrink:0; color:var(--ink-faint); margin-top:1px; }
+  #agendaRoot .detail-text .l{ font-size:11px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.05em; margin-bottom:2px; }
+  #agendaRoot .detail-text .v{ font-size:14px; }
+  #agendaRoot .detail-text .v.mono{ font-family:var(--font-mono); }
+  #agendaRoot .detail-top{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:0 0 4px; }
+  #agendaRoot .confirm-box{ background:var(--danger-soft); border:1px solid var(--danger); border-radius:var(--radius-sm); padding:12px 14px; display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:13px; color:var(--danger); }
+
+  #agendaRoot .skeleton{ color:var(--ink-faint); font-size:13.5px; padding:20px 4px; }
+  #agendaRoot .banner{
+    background:var(--amber-soft); color:var(--amber-ink); border:1px solid var(--amber);
+    border-radius:var(--radius-sm); padding:10px 14px; font-size:12.5px; display:none;
+  }
+  #agendaRoot .banner.show{ display:block; }
+
+  @media (max-width:860px){
+    #agendaRoot .app{ flex-direction:column; }
+    #agendaRoot .sidebar{ width:100%; border-right:none; border-bottom:1px solid var(--border); flex-direction:row; flex-wrap:wrap; align-items:flex-start; }
+    #agendaRoot .minical{ width:260px; }
+    #agendaRoot .side-summary{ flex:1; min-width:200px; }
+    #agendaRoot .sidebar-footer{ display:none; }
+    #agendaRoot .main{ padding:20px; }
+    #agendaRoot .clients-wrap{ flex-direction:column; }
+    #agendaRoot .clients-list{ width:100%; }
+    #agendaRoot .field-row{ grid-template-columns:1fr; }
+    #agendaRoot .week-grid{ grid-template-columns:1fr; }
+    #agendaRoot .week-col-head{ display:flex; align-items:center; gap:8px; text-align:left; padding:6px 8px; }
+    #agendaRoot .month-grid{ grid-template-columns:repeat(7,minmax(34px,1fr)); font-size:11px; }
+    #agendaRoot .month-cell{ min-height:58px; padding:3px; }
+    #agendaRoot .month-chip{ display:none; }
+    #agendaRoot .month-cell.has-items{ background:var(--accent-soft); }
+    #agendaRoot .pagos-filters{ width:100%; }
+  }
+
+  #agendaRoot{ min-height:calc(100vh - 67px); }
+  #agendaRoot .app{ min-height:calc(100vh - 67px); }
+  #agendaRoot .overlay{ z-index:60; }
+  .app-switch{display:flex; gap:4px; padding:3px; border-radius:999px; border:1px solid var(--line-strong); background:var(--panel-2);}
+  .app-switch button{
+    font-family:var(--body); font-weight:600; font-size:13px; cursor:pointer; border:none;
+    padding:7px 16px; border-radius:999px; background:none; color:var(--steel-500);
+  }
+  .app-switch button:hover{color:var(--steel-100);}
+  .app-switch button.active{background:linear-gradient(135deg, var(--blue-500), var(--blue-700)); color:#fff;}
+  body.mode-agenda .cot-only{display:none !important;}
+  @media print{ #agendaRoot, .app-switch{display:none !important;} }
+  #agendaRoot .filter-bar{ display:flex; align-items:center; gap:10px; margin:0 0 14px; flex-wrap:wrap; }
+  #agendaRoot .filter-label{ font-size:11.5px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.08em; }
+  #agendaRoot .side-summary-row .v.red{ color:var(--danger); }
+  #agendaRoot .side-summary-row .v.neg{ color:var(--danger); }
+  #agendaRoot .exp-box{ border:1px solid var(--border); border-radius:var(--radius-md); padding:12px; display:flex; flex-direction:column; gap:8px; background:var(--surface-2); }
+  #agendaRoot .exp-head, #agendaRoot .exp-net{ display:flex; justify-content:space-between; font-weight:600; font-size:13px; }
+  #agendaRoot .exp-net{ border-top:1px dashed var(--border); padding-top:8px; }
+  #agendaRoot .exp-net .pos{ color:var(--green-ink); }
+  #agendaRoot .exp-net .neg{ color:var(--danger); }
+  #agendaRoot .exp-x{ border:none; background:none; color:var(--ink-faint); cursor:pointer; font-size:12px; padding:2px 6px; border-radius:6px; }
+  #agendaRoot .exp-x:hover{ color:var(--danger); background:var(--danger-soft); }
+  #agendaRoot .exp-empty{ font-size:12.5px; color:var(--ink-faint); }
+  #agendaRoot .exp-item{ border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px; background:var(--surface); display:flex; flex-direction:column; gap:8px; }
+  #agendaRoot .exp-item-top{ display:flex; justify-content:space-between; align-items:center; font-size:11.5px; color:var(--ink-faint); font-family:var(--font-mono); }
+  #agendaRoot .exp-item input{ border:1px solid var(--border); background:var(--surface-2); color:var(--ink); border-radius:var(--radius-sm); padding:8px 10px; font:inherit; font-size:13px; width:100%; min-width:0; }
+  #agendaRoot .exp-cols{ display:grid; grid-template-columns:1fr 1.4fr 1fr; gap:8px; align-items:end; }
+  #agendaRoot .exp-cols label{ display:flex; flex-direction:column; gap:4px; font-size:11.5px; color:var(--ink-faint); }
+  #agendaRoot .exp-sub{ display:flex; flex-direction:column; gap:4px; font-size:11.5px; color:var(--ink-faint); text-align:right; }
+  #agendaRoot .exp-sub b{ font-size:14px; color:var(--ink); padding:7px 0; }
+  #agendaRoot .exp-addbtn{ width:100%; padding:9px; border-radius:var(--radius-sm); border:1px dashed var(--border); background:none; color:var(--accent-strong); font:inherit; font-size:13px; cursor:pointer; }
+  #agendaRoot .exp-addbtn:hover{ background:var(--accent-soft); }
+  #agendaRoot .card-exp{ font-size:11.5px; color:var(--ink-faint); }
+  #agendaRoot .inv-box{ border:1px solid var(--border); border-radius:var(--radius-md); padding:12px; display:flex; flex-direction:column; gap:10px; background:var(--surface-2); }
+  #agendaRoot .inv-head{ font-weight:600; font-size:13px; }
+  #agendaRoot .inv-check{ display:flex; align-items:center; gap:8px; font-size:13.5px; cursor:pointer; }
+  #agendaRoot .inv-check input{ width:16px; height:16px; accent-color:var(--accent); }
+  #agendaRoot .inv-num{ border:1px solid var(--border); background:var(--surface); color:var(--ink); border-radius:var(--radius-sm); padding:8px 10px; font:inherit; font-size:13px; width:100%; }
+  #agendaRoot select.inv-num{ appearance:auto; }
+  #agendaRoot .inv-calc{ display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; font-size:12px; color:var(--ink-faint); padding-top:6px; border-top:1px dashed var(--border); }
+  #agendaRoot .inv-calc b{ color:var(--ink); font-size:13px; }
+  #agendaRoot .exp-meta{ display:flex; align-items:flex-end; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+  #agendaRoot .exp-meta label{ display:flex; flex-direction:column; gap:4px; font-size:11.5px; color:var(--ink-faint); }
+  #agendaRoot .exp-meta label.exp-ivachk{ flex-direction:row; align-items:center; gap:6px; font-size:12.5px; color:var(--ink); padding-bottom:8px; }
+  #agendaRoot .exp-meta label.exp-ivachk input{ width:15px; height:15px; accent-color:var(--accent); }
+  #agendaRoot .exp-ivaamt{ font-size:12px; color:var(--ink-faint); padding-bottom:8px; }
+  #agendaRoot .fin-section{ margin-top:26px; padding-top:18px; border-top:1px solid var(--border); display:flex; flex-direction:column; gap:14px; }
+  #agendaRoot .fin-section h3{ margin:0; font-size:16px; font-family:var(--font-display); }
+  #agendaRoot .fin-section h4{ margin:6px 0 0; font-size:13px; color:var(--ink-soft); }
+  #agendaRoot .fin-note{ font-size:12px; color:var(--ink-faint); line-height:1.5; }
+  #agendaRoot .fin-row{ cursor:pointer; }
+  #agendaRoot .fin-row:hover td{ background:var(--accent-soft); }
+  #agendaRoot .fin-exp{ font-size:11.5px; color:var(--ink-faint); margin-top:2px; }
+  #agendaRoot .pay-stat .v.neg{ color:var(--danger); }
+  #agendaRoot .pay-stat .v.pos{ color:var(--green-ink); }
 </style>
 </head>
 <body>
@@ -377,11 +902,16 @@
       <p>Herramienta interna — completa y genera el PDF</p>
     </div>
   </div>
+  <div class="app-switch no-print">
+    <button type="button" class="active" id="appBtnCotizador" onclick="CVApp.show('cotizador')">📄 Cotizador</button>
+    <button type="button" id="appBtnAgenda" onclick="CVApp.show('agenda')">📅 Agenda</button>
+  </div>
   <div class="t-right">
     <span class="save-status" id="saveStatus"></span>
-    <button class="btn-tb" onclick="newQuote()">+ Nueva</button>
-    <button class="btn-tb" onclick="saveQuote()">💾 Guardar</button>
-    <button class="btn" onclick="printQuote()">
+    <button class="btn-tb cot-only" onclick="newQuote()">+ Nueva</button>
+    <button class="btn-tb cot-only" onclick="saveQuote()">💾 Guardar</button>
+    <button class="btn-tb cot-only" onclick="scheduleFromQuote()" title="Guardar y agendar este servicio en la Agenda">📅 Agendar</button>
+    <button class="btn cot-only" onclick="printQuote()">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
       Imprimir / Guardar PDF
     </button>
@@ -389,6 +919,7 @@
   </div>
 </div>
 
+<div id="cotizadorView">
 <div class="tabs-bar no-print">
   <button type="button" class="tab-btn active" id="tabBtnCotizacion" onclick="switchTab('cotizacion')">Cotización</button>
   <button type="button" class="tab-btn" id="tabBtnVidrios" onclick="switchTab('vidrios')">🧮 Calculadora de vidrios</button>
@@ -456,26 +987,48 @@
         Marca las condiciones que apliquen. Se mostrarán con viñeta (•) en el documento.
       </p>
 
-      <label class="checkbox-field" style="margin-bottom:10px; align-items:flex-start;">
-        <input type="checkbox" id="qCondValida" style="margin-top:3px;" checked>
-        <span>Cotización válida por el plazo indicado desde la fecha de emisión</span>
-      </label>
-      <label class="checkbox-field" style="margin-bottom:10px; align-items:flex-start;">
-        <input type="checkbox" id="qCondGarantia" style="margin-top:3px;" checked>
-        <span>Garantía de 3 meses sobre mano de obra e instalación. No cubre daños por mal uso, golpes, manipulación de terceros o problemas estructurales</span>
-      </label>
-      <label class="checkbox-field" style="margin-bottom:10px; align-items:flex-start;">
-        <input type="checkbox" id="qCondNoVisita" style="margin-top:3px;">
-        <span>Cotización realizada sin visita técnica (pueden surgir ítems adicionales en terreno)</span>
-      </label>
-      <label class="checkbox-field" style="margin-bottom:10px; align-items:flex-start;">
-        <input type="checkbox" id="qCond50" style="margin-top:3px;">
-        <span>Se considera aceptada con abono del 50% del total</span>
-      </label>
-      <label class="checkbox-field" style="margin-bottom:14px; align-items:flex-start;">
-        <input type="checkbox" id="qCondSEC" style="margin-top:3px;" checked>
-        <span>Trabajos eléctricos realizados conforme a normativa SEC (desmarca si este trabajo no incluye electricidad)</span>
-      </label>
+      <div class="cond-row" data-builtin="qCondValida">
+        <label class="checkbox-field" style="margin-bottom:0; align-items:flex-start;">
+          <input type="checkbox" id="qCondValida" style="margin-top:3px;">
+          <span>Cotización válida por el plazo indicado desde la fecha de emisión</span>
+        </label>
+        <button type="button" class="remove-btn" title="Quitar de la lista" onclick="hideBuiltinCondition('qCondValida')">✕</button>
+      </div>
+      <div class="cond-row" data-builtin="qCondGarantia">
+        <label class="checkbox-field" style="margin-bottom:0; align-items:flex-start;">
+          <input type="checkbox" id="qCondGarantia" style="margin-top:3px;">
+          <span>Garantía de 3 meses sobre mano de obra e instalación. No cubre daños por mal uso, golpes, manipulación de terceros o problemas estructurales</span>
+        </label>
+        <button type="button" class="remove-btn" title="Quitar de la lista" onclick="hideBuiltinCondition('qCondGarantia')">✕</button>
+      </div>
+      <div class="cond-row" data-builtin="qCondNoVisita">
+        <label class="checkbox-field" style="margin-bottom:0; align-items:flex-start;">
+          <input type="checkbox" id="qCondNoVisita" style="margin-top:3px;">
+          <span>Cotización realizada sin visita técnica (pueden surgir ítems adicionales en terreno)</span>
+        </label>
+        <button type="button" class="remove-btn" title="Quitar de la lista" onclick="hideBuiltinCondition('qCondNoVisita')">✕</button>
+      </div>
+      <div class="cond-row" data-builtin="qCond50">
+        <label class="checkbox-field" style="margin-bottom:0; align-items:flex-start;">
+          <input type="checkbox" id="qCond50" style="margin-top:3px;">
+          <span>Se considera aceptada con abono del 50% del total</span>
+        </label>
+        <button type="button" class="remove-btn" title="Quitar de la lista" onclick="hideBuiltinCondition('qCond50')">✕</button>
+      </div>
+      <div class="cond-row" data-builtin="qCondSEC">
+        <label class="checkbox-field" style="margin-bottom:0; align-items:flex-start;">
+          <input type="checkbox" id="qCondSEC" style="margin-top:3px;">
+          <span>Trabajos eléctricos realizados conforme a normativa SEC</span>
+        </label>
+        <button type="button" class="remove-btn" title="Quitar de la lista" onclick="hideBuiltinCondition('qCondSEC')">✕</button>
+      </div>
+
+      <div id="customConds"></div>
+      <div id="restoreConds" style="display:none; margin:-2px 0 12px;"><button type="button" class="remove-btn" style="color:var(--blue-400); font-size:12px;" onclick="restoreBuiltinConditions()">↺ Restaurar condiciones predeterminadas</button></div>
+      <div class="cond-add">
+        <input id="newCondText" type="text" placeholder="Nueva condición (ej: Anticipo no reembolsable)" maxlength="300">
+        <button type="button" class="add-btn" onclick="addCustomCondition()">+ Agregar condición a la lista</button>
+      </div>
 
       <p style="font-size:11.5px; color:var(--steel-500); line-height:1.6; margin:0 0 8px;">
         Condiciones adicionales — usa la barra para dar formato:
@@ -652,6 +1205,163 @@ cerravolt@gmail.com</textarea>
     </div>
   </div>
 </div>
+</div>
+
+<div id="agendaRoot" style="display:none;">
+<div class="app" id="app-root">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">CV</div>
+      <div class="brand-text">
+        <div class="name">CerraVolt</div>
+        <div class="sub">Agenda de servicios</div>
+      </div>
+    </div>
+
+    <button class="btn btn-primary btn-block" id="btn-new">+ Nueva cita</button>
+
+    <div class="combo">
+      <input type="text" id="global-search" class="search-input" autocomplete="off" placeholder="Buscar N°, cliente, teléfono o dirección…">
+      <div class="combo-panel" id="global-search-panel" hidden></div>
+    </div>
+
+    <div class="minical" id="minical"></div>
+
+    <div class="side-summary" id="side-summary">
+      <div class="side-summary-title">Resumen del mes</div>
+      <div class="side-summary-row"><span>Servicios agendados</span><span class="v" id="sum-count">–</span></div>
+      <div class="side-summary-row"><span>Por cobrar</span><span class="v amber" id="sum-pending">–</span></div>
+      <div class="side-summary-row"><span>Cobrado</span><span class="v green" id="sum-paid">–</span></div>
+      <div class="side-summary-row"><span>Gastos</span><span class="v red" id="sum-expenses">–</span></div>
+      <div class="side-summary-row"><span>Queda (monto − gastos)</span><span class="v" id="sum-net">–</span></div>
+      <div class="side-summary-row"><span>IVA ventas</span><span class="v" id="sum-iva-v">–</span></div>
+      <div class="side-summary-row"><span>IVA compras</span><span class="v" id="sum-iva-c">–</span></div>
+      <div class="side-summary-row"><span>IVA a pagar</span><span class="v amber" id="sum-iva">–</span></div>
+    </div>
+
+    <div class="banner" id="db-banner"></div>
+
+    <div class="sidebar-footer">
+      <button class="btn btn-ghost btn-sm" id="btn-back">← Cotizador</button>
+      <button class="btn btn-ghost btn-sm" id="btn-import" title="Copiar datos desde la agenda antigua">Importar datos antiguos</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <nav class="tabs">
+      <button class="tab active" data-tab="agenda" id="tab-agenda">Agenda</button>
+      <button class="tab" data-tab="clientes" id="tab-clientes">Clientes <span class="count" id="clients-count"></span></button>
+      <button class="tab" data-tab="tecnicos" id="tab-tecnicos">Técnicos <span class="count" id="techs-count"></span></button>
+      <button class="tab" data-tab="pagos" id="tab-pagos">Pagos</button>
+      <button class="tab" data-tab="finanzas" id="tab-finanzas">Finanzas</button>
+    </nav>
+
+    <section id="view-agenda">
+      <div class="agenda-header">
+        <div class="date-nav">
+          <button class="icon-btn" id="day-prev" aria-label="Anterior">‹</button>
+          <div class="date-title" id="date-title">–</div>
+          <button class="icon-btn" id="day-next" aria-label="Siguiente">›</button>
+          <button class="btn btn-ghost btn-sm" id="day-today">Hoy</button>
+        </div>
+        <div class="agenda-header-right">
+          <div class="chip-row" id="day-chips"></div>
+          <div class="view-switch" id="view-switch">
+            <button data-view="day" class="active">Día</button>
+            <button data-view="week">Semana</button>
+            <button data-view="month">Mes</button>
+          </div>
+        </div>
+      </div>
+      <div class="filter-bar">
+        <span class="filter-label">Mostrar</span>
+        <div class="view-switch" id="status-filter">
+          <button data-filter="all" class="active">Todos</button>
+          <button data-filter="done">Realizados</button>
+          <button data-filter="paid">Cobrados</button>
+          <button data-filter="unpaid">Por cobrar</button>
+          <button data-filter="invoiced">Con factura</button>
+          <button data-filter="uninvoiced">Sin factura</button>
+        </div>
+      </div>
+      <div class="agenda-list" id="agenda-list">
+        <div class="skeleton">Cargando agenda…</div>
+      </div>
+      <div class="week-grid" id="week-grid" hidden></div>
+      <div class="month-grid" id="month-grid" hidden></div>
+    </section>
+
+    <section id="view-clientes" hidden>
+      <div class="clients-wrap">
+        <div class="clients-list">
+          <div class="list-toolbar">
+            <input class="search-input" id="client-search" placeholder="Buscar por nombre, teléfono o dirección…" />
+            <button class="btn btn-ghost btn-sm" id="btn-export-clients" title="Descargar la lista de clientes en CSV">⬇ CSV</button>
+          </div>
+          <div class="wa-hint" id="export-clients-hint" hidden></div>
+          <div id="clients-items"><div class="skeleton">Cargando clientes…</div></div>
+        </div>
+        <div class="client-detail" id="client-detail">
+          <div class="empty-state">
+            <div class="glyph">👤</div>
+            <div class="msg">Selecciona un cliente para ver su información y el historial de servicios.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-tecnicos" hidden>
+      <div class="clients-wrap">
+        <div class="clients-list">
+          <input class="search-input" id="tech-search" placeholder="Buscar técnico…" />
+          <button class="btn btn-soft btn-sm btn-block" id="btn-new-tech">+ Nuevo técnico</button>
+          <div id="techs-items"><div class="skeleton">Cargando técnicos…</div></div>
+        </div>
+        <div class="client-detail" id="tech-detail">
+          <div class="empty-state">
+            <div class="glyph">🔧</div>
+            <div class="msg">Selecciona un técnico para ver su información y los servicios asignados.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-pagos" hidden>
+      <div class="pagos-wrap">
+        <div class="pagos-filters">
+          <div class="field"><label>Técnico</label><select id="pay-tech"><option value="">Todos los técnicos</option></select></div>
+          <div class="field"><label>Desde</label><input type="date" id="pay-from"></div>
+          <div class="field"><label>Hasta</label><input type="date" id="pay-to"></div>
+          <label class="pay-check"><input type="checkbox" id="pay-only-done"> Solo servicios realizados</label>
+          <label class="pay-check"><input type="checkbox" id="pay-only-paid"> Solo servicios cobrados</label>
+        </div>
+        <div class="pagos-results" id="pagos-results"></div>
+      </div>
+    </section>
+
+    <section id="view-finanzas" hidden>
+      <div class="pagos-wrap">
+        <div class="pagos-filters">
+          <div class="field"><label>Mes</label><input type="month" id="fin-month"></div>
+          <div class="field"><label>Mostrar</label><select id="fin-filter">
+            <option value="all">Todos los servicios</option>
+            <option value="done">Solo realizados</option>
+            <option value="paid">Solo cobrados</option>
+            <option value="unpaid">Solo por cobrar</option>
+            <option value="invoiced">Solo con factura</option>
+            <option value="uninvoiced">Solo sin factura</option>
+          </select></div>
+        </div>
+        <div class="pagos-results" id="fin-results"></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="overlay" id="overlay" hidden>
+  <div class="modal" id="modal"></div>
+</div>
+</div>
 
 </div>
 
@@ -699,9 +1409,12 @@ cerravolt@gmail.com</textarea>
       overlay.style.display = 'none';
       appRoot.style.display = 'block';
       initAppData();
+      if(window.CVAgenda) window.CVAgenda.start(db.collection('users').doc(user.uid));
     } else {
       overlay.style.display = 'flex';
       appRoot.style.display = 'none';
+      if(window.CVAgenda) window.CVAgenda.stop();
+      if(window.CVApp) window.CVApp.show('cotizador');
     }
   });
 
@@ -723,11 +1436,23 @@ cerravolt@gmail.com</textarea>
 
   let savedClientsCache = [];
 
+  // La libreta de clientes es la misma colección que usa la Agenda:
+  // { name, phone, address, email?, createdAt, updatedAt }, con id = dígitos del teléfono.
+  // Los registros antiguos del cotizador ({ name, addr, contact }) se leen igual.
+  function normalizeClient(id, d){
+    return {
+      id,
+      name: d.name || '',
+      address: d.address || d.addr || '',
+      contact: d.phone || d.email || d.contact || ''
+    };
+  }
+
   async function refreshClientsList(){
     try{
       const snap = await userClientsRef().get();
-      savedClientsCache = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
-      savedClientsCache.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es'));
+      savedClientsCache = snap.docs.map(d => normalizeClient(d.id, d.data()));
+      savedClientsCache.sort((a, b) => a.name.localeCompare(b.name, 'es'));
     }catch(e){
       console.error('Error leyendo clientes:', e);
       savedClientsCache = [];
@@ -739,7 +1464,7 @@ cerravolt@gmail.com</textarea>
     const sel = document.getElementById('clientSelect');
     const current = sel.value;
     sel.innerHTML = '<option value="">— Cliente nuevo / sin seleccionar —</option>' +
-      savedClientsCache.map(c => `<option value="${escapeAttr(c.id)}">${escapeAttr(c.name || '(sin nombre)')}${c.addr ? ' — ' + escapeAttr(c.addr) : ''}</option>`).join('');
+      savedClientsCache.map(c => `<option value="${escapeAttr(c.id)}">${escapeAttr(c.name || '(sin nombre)')}${c.address ? ' — ' + escapeAttr(c.address) : ''}</option>`).join('');
     if(savedClientsCache.some(c => c.id === current)) sel.value = current;
   }
 
@@ -747,22 +1472,30 @@ cerravolt@gmail.com</textarea>
     if(!id) return;
     const c = savedClientsCache.find(x => x.id === id);
     if(!c) return;
-    document.getElementById('cName').value = c.name || '';
-    document.getElementById('cAddr').value = c.addr || '';
-    document.getElementById('cContact').value = c.contact || '';
+    document.getElementById('cName').value = c.name;
+    document.getElementById('cAddr').value = c.address;
+    document.getElementById('cContact').value = c.contact;
     update();
   }
 
-  // Guarda o actualiza el cliente actual del formulario en la libreta de
-  // clientes, para poder reutilizarlo desde el desplegable en cotizaciones futuras.
+  // Guarda o actualiza el cliente actual del formulario en la libreta compartida
+  // con la Agenda, para reutilizarlo desde el desplegable en cotizaciones futuras.
   async function saveClientFromForm(){
     const name = document.getElementById('cName').value.trim();
     if(!name) return true;
-    const addr = document.getElementById('cAddr').value.trim();
+    const address = document.getElementById('cAddr').value.trim();
     const contact = document.getElementById('cContact').value.trim();
-    const id = cliSlug(name);
+    const digits = contact.replace(/\D/g, '');
+    const hasPhone = digits.length >= 8;
+    const id = hasPhone ? digits : cliSlug(name);
     try{
-      await userClientsRef().doc(id).set({ name, addr, contact });
+      const ref = userClientsRef().doc(id);
+      const snap = await ref.get();
+      const now = new Date().toISOString();
+      const data = { name, address, phone: hasPhone ? contact : '', updatedAt: now };
+      if(!hasPhone && contact) data.email = contact;
+      if(!snap.exists) data.createdAt = now;
+      await ref.set(data, { merge: true });
       await refreshClientsList();
       document.getElementById('clientSelect').value = id;
       return true;
@@ -770,6 +1503,176 @@ cerravolt@gmail.com</textarea>
       console.error('Error guardando cliente:', e);
       return false;
     }
+  }
+
+  // ---------- Condiciones personalizadas (catálogo reutilizable) ----------
+  // Cada condición nueva queda guardada en la cuenta y aparece como casilla
+  // seleccionable en todas las cotizaciones; lo marcado se guarda con cada cotización.
+  function userCondsRef(){
+    return db.collection('users').doc(currentUser.uid).collection('conditions');
+  }
+  const BUILTIN_CONDS = ['qCondValida', 'qCondGarantia', 'qCondNoVisita', 'qCond50', 'qCondSEC'];
+  let hiddenBuiltins = new Set();  // condiciones predeterminadas que el usuario quitó de la lista
+  let customConds = [];          // catálogo: { id, text, createdAt }
+  let customSel = new Map();     // marcadas en esta cotización: id -> text
+
+  // Catálogo + condiciones marcadas en una cotización que ya no están en el catálogo
+  function customCondList(){
+    const list = customConds.slice();
+    customSel.forEach((text, id) => { if(!list.some(c => c.id === id)) list.push({ id, text }); });
+    return list;
+  }
+
+  function userCondSettingsRef(){
+    return db.collection('users').doc(currentUser.uid).collection('settings').doc('conditions');
+  }
+
+  // Una condición predeterminada quitada se oculta, salvo que la cotización abierta la tenga marcada.
+  function applyBuiltinVisibility(){
+    let anyHidden = false;
+    BUILTIN_CONDS.forEach(id => {
+      const row = document.querySelector('[data-builtin="' + id + '"]');
+      const hide = hiddenBuiltins.has(id) && !document.getElementById(id).checked;
+      row.style.display = hide ? 'none' : '';
+      if(hiddenBuiltins.has(id)) anyHidden = true;
+    });
+    document.getElementById('restoreConds').style.display = anyHidden ? 'block' : 'none';
+  }
+
+  async function saveHiddenBuiltins(){
+    try{
+      await userCondSettingsRef().set({ hidden: Array.from(hiddenBuiltins) });
+      return true;
+    }catch(e){
+      console.error('Error guardando condiciones ocultas:', e);
+      alert('No se pudo guardar el cambio: ' + (e.message || e));
+      return false;
+    }
+  }
+
+  async function hideBuiltinCondition(id){
+    if(!confirm('¿Quitar esta condición de la lista? Puedes restaurarla después.')) return;
+    document.getElementById(id).checked = false;
+    hiddenBuiltins.add(id);
+    applyBuiltinVisibility();
+    update();
+    await saveHiddenBuiltins();
+  }
+
+  async function restoreBuiltinConditions(){
+    hiddenBuiltins = new Set();
+    applyBuiltinVisibility();
+    await saveHiddenBuiltins();
+  }
+
+  async function refreshCustomConds(){
+    try{
+      const st = await userCondSettingsRef().get();
+      hiddenBuiltins = new Set((st.exists && st.data().hidden) || []);
+    }catch(e){
+      console.error('Error leyendo condiciones ocultas:', e);
+    }
+    applyBuiltinVisibility();
+    try{
+      const snap = await userCondsRef().get();
+      customConds = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
+      customConds.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+    }catch(e){
+      console.error('Error leyendo condiciones:', e);
+      customConds = [];
+    }
+    renderCustomConds();
+  }
+
+  function renderCustomConds(){
+    const wrap = document.getElementById('customConds');
+    wrap.innerHTML = customCondList().map(c => `
+      <div class="cond-row">
+        <label class="checkbox-field">
+          <input type="checkbox" style="margin-top:3px;" ${customSel.has(c.id) ? 'checked' : ''} onchange="toggleCustomCondition('${escapeAttr(c.id)}', this.checked)">
+          <span>${escapeHtml(c.text)}</span>
+        </label>
+        <button type="button" class="remove-btn" title="Quitar de la lista" onclick="removeCustomCondition('${escapeAttr(c.id)}')">✕</button>
+      </div>`).join('');
+  }
+
+  function toggleCustomCondition(id, checked){
+    const c = customCondList().find(x => x.id === id);
+    if(!c) return;
+    if(checked) customSel.set(id, c.text); else customSel.delete(id);
+    update();
+  }
+
+  async function addCustomCondition(){
+    const input = document.getElementById('newCondText');
+    const text = input.value.trim();
+    if(!text){ input.focus(); return; }
+    const id = 'c' + Date.now().toString(36);
+    try{
+      await userCondsRef().doc(id).set({ text, createdAt: Date.now() });
+      customConds.push({ id, text, createdAt: Date.now() });
+      customSel.set(id, text);
+      input.value = '';
+      renderCustomConds();
+      update();
+    }catch(e){
+      console.error('Error guardando condición:', e);
+      alert('No se pudo guardar la condición: ' + (e.message || e));
+    }
+  }
+
+  async function removeCustomCondition(id){
+    if(!confirm('¿Quitar esta condición de la lista? Las cotizaciones ya guardadas no cambian.')) return;
+    try{
+      await userCondsRef().doc(id).delete();
+      customConds = customConds.filter(c => c.id !== id);
+      customSel.delete(id);
+      renderCustomConds();
+      update();
+    }catch(e){
+      console.error('Error quitando condición:', e);
+      alert('No se pudo quitar la condición: ' + (e.message || e));
+    }
+  }
+  document.getElementById('newCondText').addEventListener('keydown', e => {
+    if(e.key === 'Enter'){ e.preventDefault(); addCustomCondition(); }
+  });
+
+  // ---------- Cotizador / Agenda: una sola app, una sola base de datos ----------
+  const CVApp = {
+    show(which){
+      const agenda = which === 'agenda';
+      document.getElementById('cotizadorView').style.display = agenda ? 'none' : '';
+      document.getElementById('agendaRoot').style.display = agenda ? 'block' : 'none';
+      document.body.classList.toggle('mode-agenda', agenda);
+      document.getElementById('appBtnCotizador').classList.toggle('active', !agenda);
+      document.getElementById('appBtnAgenda').classList.toggle('active', agenda);
+      if(agenda && window.CVAgenda) window.CVAgenda.render();
+      if(!agenda && currentUser) refreshClientsList();
+    },
+    async openQuote(num){
+      this.show('cotizador');
+      switchTab('cotizacion');
+      await loadQuoteByNum(num);
+    }
+  };
+  window.CVApp = CVApp;
+
+  // Guarda la cotización y abre el formulario de nueva cita en la Agenda con
+  // cliente, teléfono, dirección, N° de cotización y monto ya completados.
+  async function scheduleFromQuote(){
+    await saveQuote();
+    const contact = document.getElementById('cContact').value.trim();
+    const firstItem = items.find(it => it.desc && it.desc.trim());
+    CVApp.show('agenda');
+    window.CVAgenda.openNew({
+      clientName: document.getElementById('cName').value.trim(),
+      phone: contact.replace(/\D/g, '').length >= 8 ? contact : '',
+      address: document.getElementById('cAddr').value.trim(),
+      description: document.getElementById('qService').value.trim() || (firstItem ? firstItem.desc.trim() : ''),
+      quoteNumber: document.getElementById('qNum').value.trim(),
+      amount: computeTotal(items, document.getElementById('qIva').checked)
+    });
   }
 
   // ---------- Pestañas (Cotización / Calculadora de vidrios) ----------
@@ -1287,6 +2190,7 @@ cerravolt@gmail.com</textarea>
       lines.push('Cotización se considera aceptada con el abono del 50% del total del servicio.');
     if(document.getElementById('qCondSEC').checked)
       lines.push('Trabajos eléctricos realizados conforme a normativa SEC.');
+    customCondList().forEach(c => { if(customSel.has(c.id)) lines.push(c.text); });
     // Condiciones fijas (marcadas por checkbox) con viñeta, seguidas del
     // contenido con formato libre del editor de condiciones adicionales.
     const fixedHtml = lines.map(l => `<div>• ${escapeHtml(l)}</div>`).join('');
@@ -1469,7 +2373,8 @@ cerravolt@gmail.com</textarea>
         condGarantia: document.getElementById('qCondGarantia').checked,
         condNoVisita: document.getElementById('qCondNoVisita').checked,
         cond50: document.getElementById('qCond50').checked,
-        condSEC: document.getElementById('qCondSEC').checked
+        condSEC: document.getElementById('qCondSEC').checked,
+        customSelected: Array.from(customSel, ([id, text]) => ({ id, text }))
       },
       bankShow: document.getElementById('qBankShow').checked,
       bank: document.getElementById('qBank').value,
@@ -1493,16 +2398,17 @@ cerravolt@gmail.com</textarea>
     document.getElementById('qServiceShow').checked = s.serviceShow !== false;
     items = (s.items && s.items.length) ? s.items : [{ desc:'', qty:1, price:0 }];
     document.getElementById('qIva').checked = !!s.iva;
-    const legacyText = s.notes?.text ||
-`Cotización válida por el plazo indicado desde la fecha de emisión.
-Garantía de 6 meses sobre mano de obra e instalación. No cubre daños por mal uso, golpes, manipulación de terceros o problemas estructurales.`;
+    const legacyText = s.notes?.text || '';
     const filteredLegacy = legacyText.split('\n').filter(l => !/normativa\s+SEC/i.test(l)).join('\n');
     document.getElementById('qNotes').innerHTML = /<[a-z][\s\S]*>/i.test(filteredLegacy) ? filteredLegacy : qnLinesToHtml(filteredLegacy);
-    document.getElementById('qCondValida').checked = s.notes?.condValida !== false;
-    document.getElementById('qCondGarantia').checked = s.notes?.condGarantia !== false;
+    document.getElementById('qCondValida').checked = !!s.notes?.condValida;
+    document.getElementById('qCondGarantia').checked = !!s.notes?.condGarantia;
     document.getElementById('qCondNoVisita').checked = !!s.notes?.condNoVisita;
     document.getElementById('qCond50').checked = !!s.notes?.cond50;
-    document.getElementById('qCondSEC').checked = s.notes?.condSEC !== false;
+    document.getElementById('qCondSEC').checked = !!s.notes?.condSEC;
+    customSel = new Map((s.notes?.customSelected || []).map(c => [c.id, c.text]));
+    renderCustomConds();
+    applyBuiltinVisibility();
     document.getElementById('qBankShow').checked = !!s.bankShow;
     document.getElementById('qBank').value = s.bank || '';
     images = s.images || [];
@@ -1548,13 +2454,22 @@ Garantía de 6 meses sobre mano de obra e instalación. No cubre daños por mal 
       });
     }catch(e){
       console.error('Error leyendo Firestore:', e);
-      document.getElementById('storageWarning').style.display = 'block';
+      indexLoadFailed = true;
+      const warn = document.getElementById('storageWarning');
+      warn.textContent = '⚠️ No se pudo leer la base de datos (' + (e.code || e.message || 'error desconocido') + '). Si dice permission-denied, revisa las reglas de Firestore del proyecto cotizador-cerravolt.';
+      warn.style.display = 'block';
       return [];
     }
   }
 
+  let indexLoadFailed = false;
+
+  // Devuelve '' si no pudo leer las cotizaciones guardadas: asignar "0001" a ciegas
+  // podría sobrescribir una cotización existente.
   async function nextQuoteNumber(){
+    indexLoadFailed = false;
     const idx = await getIndex();
+    if(indexLoadFailed) return '';
     let max = 0;
     idx.forEach(it => { const n = parseInt(it.num,10); if(!isNaN(n) && n>max) max=n; });
     return String(max+1).padStart(4,'0');
@@ -1620,6 +2535,10 @@ Garantía de 6 meses sobre mano de obra e instalación. No cubre daños por mal 
     let num = document.getElementById('qNum').value.trim();
     if(!num){
       num = await nextQuoteNumber();
+      if(!num){
+        alert('No se pudo leer tus cotizaciones guardadas para asignar el número, así que no se guardó (para no sobrescribir una existente). Revisa el aviso amarillo de arriba a la izquierda.');
+        return;
+      }
       document.getElementById('qNum').value = num;
       update();
     }
@@ -1661,11 +2580,14 @@ Garantía de 6 meses sobre mano de obra e instalación. No cubre daños por mal 
       if(doc.exists){
         applyState(doc.data());
         currentNum = num;
-        const matchedClient = savedClientsCache.find(c => c.id === cliSlug(document.getElementById('cName').value));
+        const loadedName = document.getElementById('cName').value.trim().toLowerCase();
+        const matchedClient = savedClientsCache.find(c => c.name.toLowerCase() === loadedName);
         document.getElementById('clientSelect').value = matchedClient ? matchedClient.id : '';
         renderSavedResults(document.getElementById('savedSearch').value);
         closeSavedDropdown();
         showSaveStatus('Cargada N° ' + num);
+      } else {
+        showSaveStatus('No existe la cotización N° ' + num);
       }
     }catch(e){
       console.error('Error cargando:', e);
@@ -1699,14 +2621,15 @@ Garantía de 6 meses sobre mano de obra e instalación. No cubre daños por mal 
     document.getElementById('qServiceShow').checked = true;
     items = [{ desc:'', qty:1, price:0 }];
     document.getElementById('qIva').checked = false;
-    document.getElementById('qNotes').innerHTML = qnLinesToHtml(
-`Cotización válida por el plazo indicado desde la fecha de emisión.
-Garantía de 6 meses sobre mano de obra e instalación. No cubre daños por mal uso, golpes, manipulación de terceros o problemas estructurales.`);
-    document.getElementById('qCondValida').checked = true;
-    document.getElementById('qCondGarantia').checked = true;
+    document.getElementById('qNotes').innerHTML = '';
+    document.getElementById('qCondValida').checked = false;
+    document.getElementById('qCondGarantia').checked = false;
     document.getElementById('qCondNoVisita').checked = false;
     document.getElementById('qCond50').checked = false;
-    document.getElementById('qCondSEC').checked = true;
+    document.getElementById('qCondSEC').checked = false;
+    customSel = new Map();
+    renderCustomConds();
+    applyBuiltinVisibility();
     document.getElementById('qBankShow').checked = false;
     document.getElementById('qBank').value =
 `CERRAVOLT SPA
@@ -1763,11 +2686,1790 @@ cerravolt@gmail.com`;
     await refreshSavedList();
     await refreshClientsList();
     await refreshGlassTypes();
+    await refreshCustomConds();
     if(!document.getElementById('qNum').value){
       document.getElementById('qNum').value = await nextQuoteNumber();
       update();
     }
   }
+</script>
+
+<script>
+(function(){
+
+  "use strict";
+
+  /* ---------------- state ---------------- */
+  var state = {
+    services: new Map(),   // id -> data
+    clients: new Map(),    // id (phone) -> data
+    technicians: new Map(),// id -> data
+    selectedDate: isoFromDate(new Date()),
+    calYear: new Date().getFullYear(),
+    calMonth: new Date().getMonth(),
+    activeTab: 'agenda',
+    activeClientId: null,
+    activeTechId: null,
+    view: 'day',
+    filter: 'all',
+    dbReady: false,
+    db: null
+  };
+
+  var DOW = ['L','M','M','J','V','S','D'];
+  var MONTHS = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  var WEEKDAYS = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+
+  function pad2(n){ return String(n).padStart(2,'0'); }
+  function isoFromDate(d){ return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()); }
+  function dateFromISO(iso){ var p=iso.split('-'); return new Date(+p[0], +p[1]-1, +p[2]); }
+  function capitalize(s){ s=String(s||''); return s.charAt(0).toUpperCase()+s.slice(1); }
+  function startOfWeek(iso){
+    var d = dateFromISO(iso);
+    var offset = (d.getDay()+6)%7; // Monday=0
+    d.setDate(d.getDate()-offset);
+    return d;
+  }
+  function stripPhone(s){ return (s||'').replace(/\D/g,''); }
+  function formatCLP(n){
+    n = Number(n)||0;
+    return '$' + n.toLocaleString('es-CL');
+  }
+  function escapeHtml(s){
+    return String(s==null?'':s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+  function csvEscape(v){
+    v = String(v==null?'':v);
+    if(/[",\n\r]/.test(v)) return '"' + v.replace(/"/g,'""') + '"';
+    return v;
+  }
+
+  /* ---------------- Firebase bootstrap (Auth + Firestore) ---------------- */
+
+  function showBanner(msg){
+    var b = document.getElementById('db-banner');
+    b.textContent = msg;
+    b.classList.add('show');
+  }
+  function clearBanner(){
+    var b = document.getElementById('db-banner');
+    b.textContent = '';
+    b.classList.remove('show');
+  }
+
+  var unsubs = [];
+  function subscribeAll(db){
+    unsubs.push(db.collection('services').orderBy('date').onSnapshot(function(snap){
+      var m = new Map();
+      snap.docs.forEach(function(d){ m.set(d.id, d.data()); });
+      state.services = m;
+      clearBanner();
+      renderAll();
+    }, function(err){
+      console.error('services snapshot error', err);
+      showBanner('No se pudo sincronizar la agenda (' + err.code + '). Revisa las reglas de Firestore.');
+    }));
+
+    unsubs.push(db.collection('clients').orderBy('name').onSnapshot(function(snap){
+      var m = new Map();
+      snap.docs.forEach(function(d){ m.set(d.id, d.data()); });
+      state.clients = m;
+      renderAll();
+    }, function(err){
+      console.error('clients snapshot error', err);
+      showBanner('No se pudo sincronizar los clientes (' + err.code + '). Revisa las reglas de Firestore.');
+    }));
+
+    unsubs.push(db.collection('technicians').orderBy('name').onSnapshot(function(snap){
+      var m = new Map();
+      snap.docs.forEach(function(d){ m.set(d.id, d.data()); });
+      state.technicians = m;
+      renderAll();
+    }, function(err){
+      console.error('technicians snapshot error', err);
+      showBanner('No se pudo sincronizar los técnicos (' + err.code + '). Revisa las reglas de Firestore.');
+    }));
+  }
+
+
+  async function upsertClient(phoneRaw, fields){
+    var id = stripPhone(phoneRaw);
+    if(!id || !state.db) return null;
+    var ref = state.db.collection('clients').doc(id);
+    var snap = await ref.get();
+    var now = new Date().toISOString();
+    if(snap.exists){
+      await ref.update({ name: fields.name, phone: phoneRaw, address: fields.address, updatedAt: now });
+    } else {
+      await ref.set({ name: fields.name, phone: phoneRaw, address: fields.address, createdAt: now, updatedAt: now });
+    }
+    return id;
+  }
+
+  async function nextTrackingCode(){
+    var ref = state.db.collection('meta').doc('counters');
+    var snap = await ref.get();
+    var current = (snap.exists && snap.data().serviceSeq) ? Number(snap.data().serviceSeq) : 0;
+    var next = current + 1;
+    if(snap.exists){ await ref.update({ serviceSeq: next }); }
+    else { await ref.set({ serviceSeq: next }); }
+    return 'CV' + String(next).padStart(4,'0');
+  }
+
+  async function saveAppointment(data, existingId){
+    var clientId = await upsertClient(data.phone, { name: data.clientName, address: data.address });
+    var payload = {
+      date: data.date, time: data.time, clientName: data.clientName, phone: data.phone,
+      clientId: clientId, address: data.address, description: data.description,
+      quoteNumber: data.quoteNumber || '', amount: Number(data.amount)||0,
+      technician: data.technician || '', paymentStatus: data.paymentStatus || 'pendiente',
+      notes: data.notes || ''
+    };
+    if(existingId){
+      await state.db.collection('services').doc(existingId).update(payload);
+    } else {
+      payload.createdAt = new Date().toISOString();
+      payload.trackingCode = await nextTrackingCode();
+      await state.db.collection('services').add(payload);
+    }
+  }
+
+  async function setPaymentStatus(id, status){
+    await state.db.collection('services').doc(id).update({ paymentStatus: status });
+  }
+
+  async function setCompleted(id, done){
+    await state.db.collection('services').doc(id).update({ completed: !!done });
+  }
+
+  async function deleteAppointment(id){
+    await state.db.collection('services').doc(id).delete();
+  }
+
+  /* ---------------- derived data ---------------- */
+  // Filtro por estado: all | done (realizados) | paid (cobrados) | unpaid (por cobrar)
+  function statusMatches(v, f){
+    if(f==='done') return !!v.completed;
+    if(f==='paid') return v.paymentStatus==='pagado';
+    if(f==='unpaid') return v.paymentStatus!=='pagado';
+    if(f==='invoiced') return !!v.invoiced;
+    if(f==='uninvoiced') return !v.invoiced;
+    return true;
+  }
+  // Un gasto se ingresa por su valor NETO; si tiene IVA (e.iva === true) se le suma el 19%.
+  // Los gastos antiguos (sin ese campo) quedan sin IVA para no inventar crédito fiscal.
+  function expParts(e){
+    var hasQP = e.qty != null || e.price != null;
+    var net = hasQP ? (Number(e.qty)||0) * (Number(e.price)||0) : (Number(e.amount)||0);
+    var iva = e.iva === true ? Math.round(net * IVA_PCT / 100) : 0;
+    return { net: net, iva: iva, gross: net + iva };
+  }
+  // Total pagado por los gastos de un servicio (neto + IVA)
+  function expensesTotal(v){
+    return (Array.isArray(v.expenses) ? v.expenses : []).reduce(function(a,e){ return a + expParts(e).gross; }, 0);
+  }
+  function ymOf(iso){ return (iso||'').slice(0,7); }
+
+  // Ventas con factura cuyo mes es el de la FECHA DE FACTURA (si falta, la del servicio)
+  function salesInMonth(prefix){
+    var out = [];
+    state.services.forEach(function(v,id){
+      var iv = ivaOf(v), when = v.invoiceDate || v.date;
+      if(iv && ymOf(when) === prefix) out.push({ id:id, s:v, when:when, net:iv.net, iva:iv.iva, total:iv.total });
+    });
+    out.sort(function(a,b){ return a.when.localeCompare(b.when); });
+    return out;
+  }
+  // Compras/gastos cuyo mes es el de la FECHA DE COMPRA (si falta, la del servicio)
+  function purchasesInMonth(prefix){
+    var out = [];
+    state.services.forEach(function(v,id){
+      (Array.isArray(v.expenses) ? v.expenses : []).forEach(function(e){
+        var when = e.date || v.date;
+        if(ymOf(when) !== prefix) return;
+        var p = expParts(e);
+        out.push({ id:id, s:v, e:e, when:when, net:p.net, iva:p.iva, gross:p.gross });
+      });
+    });
+    out.sort(function(a,b){ return a.when.localeCompare(b.when); });
+    return out;
+  }
+  function sumBy(list, key){ return list.reduce(function(a,x){ return a + (x[key]||0); }, 0); }
+  function fmtShortDate(iso){
+    if(!iso) return '—';
+    var d = dateFromISO(iso);
+    return d.getDate() + ' ' + MONTHS[d.getMonth()].slice(0,3) + ' ' + d.getFullYear();
+  }
+  function monthLabel(prefix){
+    var p = prefix.split('-');
+    return capitalize(MONTHS[Number(p[1])-1]) + ' ' + p[0];
+  }
+  // IVA de un servicio facturado. ivaMode 'incluido' (por defecto): el monto ya trae IVA;
+  // 'neto': el monto es sin IVA y se le suma. Devuelve null si no tiene factura.
+  var IVA_PCT = 19;
+  function ivaOf(v){
+    if(!v.invoiced) return null;
+    var a = Number(v.amount)||0;
+    if(v.ivaMode==='neto'){
+      var iva = Math.round(a*IVA_PCT/100);
+      return { iva: iva, net: a, total: a + iva };
+    }
+    var iva2 = Math.round(a*IVA_PCT/(100+IVA_PCT));
+    return { iva: iva2, net: a - iva2, total: a };
+  }
+  function formatNet(n){ return (n<0?'-':'') + formatCLP(Math.abs(n)); }
+
+  function servicesForDate(iso){
+    var out = [];
+    state.services.forEach(function(v,id){ if(v.date===iso && statusMatches(v, state.filter)) out.push(Object.assign({id:id}, v)); });
+    out.sort(function(a,b){ return (a.time||'').localeCompare(b.time||''); });
+    return out;
+  }
+  function servicesForClient(clientId){
+    var out = [];
+    state.services.forEach(function(v,id){ if(v.clientId===clientId) out.push(Object.assign({id:id}, v)); });
+    out.sort(function(a,b){ return (b.date+b.time).localeCompare(a.date+a.time); });
+    return out;
+  }
+  function monthKey(y,m){ return y+'-'+pad2(m+1); }
+  function daysWithServiceInMonth(y,m){
+    var set = new Set();
+    var prefix = monthKey(y,m);
+    state.services.forEach(function(v){ if((v.date||'').slice(0,7)===prefix && statusMatches(v, state.filter)) set.add(v.date); });
+    return set;
+  }
+  function servicesForTechnician(name){
+    var out = [];
+    state.services.forEach(function(v,id){ if(v.technician===name) out.push(Object.assign({id:id}, v)); });
+    out.sort(function(a,b){ return (b.date+b.time).localeCompare(a.date+a.time); });
+    return out;
+  }
+  function mapsUrl(address){ return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(address||''); }
+  function servicesInRange(fromIso, toIso){
+    var out = [];
+    state.services.forEach(function(v,id){
+      if(v.date < fromIso || v.date > toIso || !statusMatches(v, state.filter)) return;
+      out.push(Object.assign({id:id}, v));
+    });
+    out.sort(function(a,b){ return (a.date+a.time).localeCompare(b.date+b.time); });
+    return out;
+  }
+
+  /* ---------------- WhatsApp (free, click-to-chat) ---------------- */
+  var DONE_ICON = '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  var WA_ICON = '<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><path d="M16.02 3C9.4 3 4 8.36 4 14.94c0 2.2.6 4.24 1.64 6.01L4 29l8.24-2.53a12.9 12.9 0 0 0 3.78.56h.01c6.61 0 12-5.36 12-11.94C28.03 8.36 22.64 3 16.02 3Zm7.02 17.15c-.3.83-1.6 1.55-2.34 1.65-.6.09-1.36.13-2.2-.14-.5-.16-1.15-.37-1.98-.73-3.5-1.51-5.78-5.05-5.96-5.28-.17-.23-1.43-1.9-1.43-3.63 0-1.72.9-2.57 1.22-2.92.32-.35.7-.44.93-.44.24 0 .47 0 .68.01.22.01.51-.08.8.61.3.7.99 2.42 1.08 2.6.09.18.15.39.03.63-.12.24-.18.39-.36.6-.18.21-.38.47-.54.63-.18.18-.37.37-.16.72.21.35.93 1.53 2 2.48 1.37 1.22 2.53 1.6 2.88 1.78.35.18.56.15.77-.09.21-.24.9-1.04 1.14-1.4.24-.35.47-.29.79-.17.32.12 2.03.96 2.38 1.13.35.18.58.26.66.4.09.15.09.85-.19 1.66Z"/></svg>';
+
+  function waPhoneDigits(raw){
+    var d = stripPhone(raw);
+    if(!d) return '';
+    if(d.length===9 && d.charAt(0)==='9') return '56'+d;
+    return d;
+  }
+  function waLink(phone, text){
+    var digits = waPhoneDigits(phone);
+    if(!digits) return '';
+    return 'https://wa.me/' + digits + '?text=' + encodeURIComponent(text);
+  }
+  function technicianPhone(name){
+    if(!name) return '';
+    var match = Array.from(state.technicians.values()).find(function(t){ return (t.name||'').toLowerCase()===String(name).toLowerCase(); });
+    return match ? (match.phone||'') : '';
+  }
+  function serviceDateLabel(s){
+    var d = dateFromISO(s.date);
+    var weekday = WEEKDAYS[d.getDay()]; weekday = weekday.charAt(0).toUpperCase() + weekday.slice(1);
+    return weekday + ' ' + d.getDate() + ' de ' + MONTHS[d.getMonth()];
+  }
+  function techWaMessage(s){
+    var lines = [
+      '*Nuevo servicio asignado - CerraVolt*',
+      ''
+    ];
+    if(s.trackingCode) lines.push('• *N° de seguimiento:* ' + s.trackingCode);
+    lines.push(
+      '• *Fecha:* ' + serviceDateLabel(s) + ', ' + s.time,
+      '• *Cliente:* ' + s.clientName,
+      '• *Teléfono:* ' + s.phone,
+      '• *Dirección:* ' + s.address,
+      '• *Mapa:* ' + mapsUrl(s.address),
+      '• *Servicio:* ' + s.description
+    );
+    if(s.quoteNumber) lines.push('• *Cotización:* ' + s.quoteNumber);
+    lines.push('• *Monto:* ' + formatCLP(s.amount));
+    if(s.notes) lines.push('• *Notas:* ' + s.notes);
+    return lines.join('\n');
+  }
+  function clientWaMessage(s){
+    return 'Hola ' + s.clientName + ', le escribimos de *CerraVolt*.\n\n' +
+      'Le confirmamos su servicio agendado para el ' + serviceDateLabel(s) + ' a las ' + s.time + ', en ' + s.address + '.\n\n' +
+      'Servicio: ' + s.description + '.\n\n' +
+      (s.trackingCode ? 'Su número de seguimiento es *' + s.trackingCode + '*. Consérvelo para futuras consultas o garantías.\n\n' : '') +
+      'Ante cualquier consulta, puede responder este mensaje. ¡Gracias por confiar en nosotros!';
+  }
+  function waTechButton(s, cls){
+    var phone = technicianPhone(s.technician);
+    var link = phone ? waLink(phone, techWaMessage(s)) : '';
+    var title = phone ? 'Enviar WhatsApp al técnico' : 'Agrega el teléfono del técnico en la pestaña Técnicos';
+    return '<a class="'+cls+(link?'':' off')+'" '+(link?'href="'+link+'"':'')+' target="_blank" rel="noopener" title="'+title+'" data-wa="1" aria-disabled="'+(link?'false':'true')+'">'+WA_ICON+(cls==='btn-wa'?'<span>Técnico</span>':'')+'</a>';
+  }
+  function waClientButton(s, cls){
+    var link = s.phone ? waLink(s.phone, clientWaMessage(s)) : '';
+    var title = link ? 'Enviar WhatsApp al cliente' : 'Falta el teléfono del cliente';
+    return '<a class="'+cls+(link?'':' off')+'" '+(link?'href="'+link+'"':'')+' target="_blank" rel="noopener" title="'+title+'" data-wa="1" aria-disabled="'+(link?'false':'true')+'">'+WA_ICON+(cls==='btn-wa'?'<span>Cliente</span>':'')+'</a>';
+  }
+
+  /* ---------------- render: minical ---------------- */
+  function renderMinical(){
+    var y = state.calYear, m = state.calMonth;
+    var todayIso = isoFromDate(new Date());
+    var daysWithSvc = daysWithServiceInMonth(y,m);
+
+    var first = new Date(y,m,1);
+    var startOffset = (first.getDay()+6)%7; // Monday=0
+    var daysInMonth = new Date(y,m+1,0).getDate();
+    var daysInPrevMonth = new Date(y,m,0).getDate();
+
+    var cells = [];
+    for(var i=0;i<startOffset;i++){
+      var d = daysInPrevMonth - startOffset + 1 + i;
+      cells.push({d:d, out:true, iso:null});
+    }
+    for(var d2=1; d2<=daysInMonth; d2++){
+      cells.push({d:d2, out:false, iso: y+'-'+pad2(m+1)+'-'+pad2(d2)});
+    }
+    while(cells.length % 7 !== 0 || cells.length < 42){
+      var nd = cells.length - (startOffset+daysInMonth) + 1;
+      cells.push({d:nd, out:true, iso:null});
+      if(cells.length>=42) break;
+    }
+
+    var html = '<div class="minical-head">' +
+      '<div class="minical-title">' + MONTHS[m] + ' ' + y + '</div>' +
+      '<div class="minical-nav">' +
+        '<button class="icon-btn" id="cal-prev" aria-label="Mes anterior">‹</button>' +
+        '<button class="icon-btn" id="cal-next" aria-label="Mes siguiente">›</button>' +
+      '</div></div>' +
+      '<div class="minical-grid">';
+    DOW.forEach(function(l){ html += '<div class="minical-dow">'+l+'</div>'; });
+    cells.forEach(function(c){
+      var cls = 'minical-cell';
+      if(c.out) cls += ' out';
+      if(!c.out && c.iso===todayIso) cls += ' today';
+      if(!c.out && c.iso===state.selectedDate) cls += ' selected';
+      var dot = (!c.out && daysWithSvc.has(c.iso)) ? '<span class="minical-dot"></span>' : '';
+      html += '<button class="'+cls+'" data-iso="'+(c.iso||'')+'" '+(c.out?'disabled':'')+'>'+c.d+dot+'</button>';
+    });
+    html += '</div>';
+
+    document.getElementById('minical').innerHTML = html;
+    document.getElementById('cal-prev').onclick = function(){ shiftMonth(-1); };
+    document.getElementById('cal-next').onclick = function(){ shiftMonth(1); };
+    document.querySelectorAll('.minical-cell[data-iso]:not([disabled])').forEach(function(el){
+      el.onclick = function(){
+        state.selectedDate = el.getAttribute('data-iso');
+        state.view = 'day';
+        document.querySelectorAll('#view-switch button').forEach(function(b){
+          b.classList.toggle('active', b.getAttribute('data-view')==='day');
+        });
+        document.getElementById('agenda-list').hidden = false;
+        document.getElementById('week-grid').hidden = true;
+        document.getElementById('month-grid').hidden = true;
+        switchTab('agenda');
+        renderAll();
+      };
+    });
+  }
+  function shiftMonth(delta){
+    var m = state.calMonth + delta, y = state.calYear;
+    if(m<0){ m=11; y--; } if(m>11){ m=0; y++; }
+    state.calMonth = m; state.calYear = y;
+    renderMinical();
+  }
+
+  /* ---------------- render: side summary ---------------- */
+  function renderSideSummary(){
+    var prefix = monthKey(state.calYear, state.calMonth);
+    var count=0, pending=0, paid=0, spent=0;
+    state.services.forEach(function(v){
+      if((v.date||'').slice(0,7)!==prefix) return;
+      count++;
+      if(v.paymentStatus==='pagado') paid += Number(v.amount)||0;
+      else pending += Number(v.amount)||0;
+      spent += expensesTotal(v);
+    });
+    var net = paid + pending - spent;
+    var ivaV = sumBy(salesInMonth(prefix), 'iva'), ivaC = sumBy(purchasesInMonth(prefix), 'iva');
+    document.getElementById('sum-iva-v').textContent = formatCLP(ivaV);
+    document.getElementById('sum-iva-c').textContent = formatCLP(ivaC);
+    var dueEl = document.getElementById('sum-iva');
+    dueEl.textContent = formatNet(ivaV - ivaC);
+    dueEl.className = 'v ' + (ivaV - ivaC < 0 ? 'green' : 'amber');
+    document.getElementById('sum-expenses').textContent = formatCLP(spent);
+    var netEl = document.getElementById('sum-net');
+    netEl.textContent = formatNet(net);
+    netEl.className = 'v ' + (net<0 ? 'neg' : 'green');
+    document.getElementById('sum-count').textContent = count;
+    document.getElementById('sum-pending').textContent = formatCLP(pending);
+    document.getElementById('sum-paid').textContent = formatCLP(paid);
+  }
+
+  /* ---------------- render: agenda (day / week / month) ---------------- */
+  function wireServiceCards(root){
+    root.querySelectorAll('.service-card').forEach(function(el){
+      el.addEventListener('click', function(){ openDetail(el.getAttribute('data-id')); });
+      el.addEventListener('keydown', function(e){
+        if(e.key==='Enter' || e.key===' '){ e.preventDefault(); openDetail(el.getAttribute('data-id')); }
+      });
+      el.querySelectorAll('[data-wa]').forEach(function(a){
+        a.addEventListener('click', function(e){ e.stopPropagation(); });
+      });
+      var toggle = el.querySelector('.done-toggle');
+      if(toggle){
+        toggle.addEventListener('click', function(e){
+          e.stopPropagation();
+          setCompleted(el.getAttribute('data-id'), !toggle.classList.contains('checked'));
+        });
+      }
+    });
+  }
+
+  function serviceCardHtml(s){
+    var done = !!s.completed;
+    return '<div class="service-card'+(done?' is-done':'')+'" data-id="'+s.id+'" tabindex="0" role="button" aria-label="Ver detalle del servicio de '+escapeHtml(s.clientName||'')+'">' +
+      '<button type="button" class="done-toggle'+(done?' checked':'')+'" title="'+(done?'Marcar como pendiente':'Marcar como realizado')+'">'+DONE_ICON+'</button>' +
+      '<div class="service-time"><span class="t mono">'+escapeHtml(s.time||'--:--')+'</span>' +
+        (s.technician ? '<span class="tech">'+escapeHtml(s.technician)+'</span>' : '') +
+      '</div>' +
+      '<div class="service-body">' +
+        '<div class="service-client">'+escapeHtml(s.clientName||'Sin nombre')+(s.trackingCode?'<span class="track-code">'+escapeHtml(s.trackingCode)+'</span>':'')+'</div>' +
+        '<div class="service-desc">'+escapeHtml(s.description||'')+'</div>' +
+        '<div class="service-addr">📍 '+escapeHtml(s.address||'')+'</div>' +
+      '</div>' +
+      '<div class="service-right">' +
+        '<span class="amount">'+formatCLP(s.amount)+'</span>' +
+        (expensesTotal(s)>0 ? '<span class="card-exp">Gastos '+formatCLP(expensesTotal(s))+'</span>' : '') +
+        (s.invoiced ? '<span class="card-exp">🧾 Factura '+escapeHtml(s.invoiceNumber||'emitida')+'</span>' : '') +
+        '<span class="status-pill '+(s.paymentStatus==='pagado'?'pagado':'pendiente')+'">'+(s.paymentStatus==='pagado'?'Pagado':'Pendiente')+'</span>' +
+        '<div class="wa-row">'+waTechButton(s,'wa-btn')+waClientButton(s,'wa-btn')+'</div>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function renderAgendaHeader(){
+    var view = state.view;
+    var rangeStart, rangeEnd, titleHtml;
+    if(view==='week'){
+      var start = startOfWeek(state.selectedDate);
+      var end = new Date(start); end.setDate(end.getDate()+6);
+      rangeStart = isoFromDate(start); rangeEnd = isoFromDate(end);
+      titleHtml = (start.getMonth()===end.getMonth())
+        ? start.getDate()+' – '+end.getDate()+' de '+MONTHS[start.getMonth()]+' <span class="yr">'+start.getFullYear()+'</span>'
+        : start.getDate()+' '+capitalize(MONTHS[start.getMonth()].slice(0,3))+' – '+end.getDate()+' '+capitalize(MONTHS[end.getMonth()].slice(0,3))+' <span class="yr">'+end.getFullYear()+'</span>';
+    } else if(view==='month'){
+      var y=state.calYear, m=state.calMonth;
+      rangeStart = y+'-'+pad2(m+1)+'-01';
+      rangeEnd = y+'-'+pad2(m+1)+'-'+pad2(new Date(y,m+1,0).getDate());
+      titleHtml = capitalize(MONTHS[m]) + ' <span class="yr">' + y + '</span>';
+    } else {
+      rangeStart = rangeEnd = state.selectedDate;
+      var d = dateFromISO(state.selectedDate);
+      titleHtml = capitalize(WEEKDAYS[d.getDay()]) + ', ' + d.getDate() + ' de ' + MONTHS[d.getMonth()] + ' <span class="yr">' + d.getFullYear() + '</span>';
+    }
+    document.getElementById('date-title').innerHTML = titleHtml;
+
+    var items = servicesInRange(rangeStart, rangeEnd);
+    var pending=0, paid=0;
+    items.forEach(function(s){ if(s.paymentStatus==='pagado') paid += Number(s.amount)||0; else pending += Number(s.amount)||0; });
+    var chips = '<span class="chip"><span class="dot" style="background:var(--accent)"></span>' + items.length + (items.length===1?' cita':' citas') + '</span>';
+    if(pending>0) chips += '<span class="chip amber"><span class="dot"></span>Por cobrar <span class="val">'+formatCLP(pending)+'</span></span>';
+    if(paid>0) chips += '<span class="chip green"><span class="dot"></span>Cobrado <span class="val">'+formatCLP(paid)+'</span></span>';
+    document.getElementById('day-chips').innerHTML = chips;
+  }
+
+  function renderDayView(){
+    var list = document.getElementById('agenda-list');
+    var items = servicesForDate(state.selectedDate);
+    if(items.length===0){
+      list.innerHTML = '<div class="empty-state"><div class="glyph">📅</div><div class="msg">'+(state.filter==='all' ? 'No hay servicios agendados este día.' : 'No hay servicios con este filtro este día.')+'</div>' +
+        '<button class="btn btn-soft btn-sm" id="empty-new">+ Agendar servicio</button></div>';
+      var btn = document.getElementById('empty-new');
+      if(btn) btn.onclick = function(){ openAppointmentForm(null); };
+      return;
+    }
+    list.innerHTML = items.map(serviceCardHtml).join('');
+    wireServiceCards(list);
+  }
+
+  function renderWeekView(){
+    var grid = document.getElementById('week-grid');
+    var start = startOfWeek(state.selectedDate);
+    var todayIso = isoFromDate(new Date());
+    var html = '';
+    for(var i=0;i<7;i++){
+      var d = new Date(start); d.setDate(d.getDate()+i);
+      var iso = isoFromDate(d);
+      var items = servicesForDate(iso);
+      html += '<div class="week-col">' +
+        '<button type="button" class="week-col-head'+(iso===todayIso?' today':'')+'" data-iso="'+iso+'">' +
+          '<div class="wd">'+WEEKDAYS[d.getDay()].slice(0,3)+'</div><div class="wn">'+d.getDate()+'</div>' +
+        '</button>' +
+        '<div class="week-col-body">' +
+        (items.length===0 ? '<div class="week-col-empty">—</div>' : items.map(function(s){
+          return '<button type="button" class="wchip'+(s.completed?' is-done':'')+' '+(s.paymentStatus==='pagado'?'pagado':'pendiente')+'" data-id="'+s.id+'">' +
+            '<span class="wchip-time">'+escapeHtml(s.time||'')+'</span><span class="wchip-name">'+escapeHtml(s.clientName||'')+'</span>' +
+          '</button>';
+        }).join('')) +
+        '</div>' +
+      '</div>';
+    }
+    grid.innerHTML = html;
+    grid.querySelectorAll('.week-col-head').forEach(function(el){
+      el.onclick = function(){ state.selectedDate = el.getAttribute('data-iso'); switchView('day'); };
+    });
+    grid.querySelectorAll('.wchip').forEach(function(el){
+      el.onclick = function(){ openDetail(el.getAttribute('data-id')); };
+    });
+  }
+
+  function renderMonthView(){
+    var grid = document.getElementById('month-grid');
+    var y = state.calYear, m = state.calMonth;
+    var todayIso = isoFromDate(new Date());
+    var first = new Date(y,m,1);
+    var startOffset = (first.getDay()+6)%7;
+    var daysInMonth = new Date(y,m+1,0).getDate();
+    var daysInPrevMonth = new Date(y,m,0).getDate();
+
+    var cells = [];
+    for(var i=0;i<startOffset;i++) cells.push({d:daysInPrevMonth-startOffset+1+i, out:true, iso:null});
+    for(var d2=1; d2<=daysInMonth; d2++) cells.push({d:d2, out:false, iso: y+'-'+pad2(m+1)+'-'+pad2(d2)});
+    while(cells.length % 7 !== 0){ cells.push({d:cells.length-(startOffset+daysInMonth)+1, out:true, iso:null}); }
+
+    var html = ['L','M','M','J','V','S','D'].map(function(l){ return '<div class="month-dow">'+l+'</div>'; }).join('');
+    cells.forEach(function(c){
+      if(c.out){
+        html += '<div class="month-cell out"><span class="mn">'+c.d+'</span></div>';
+        return;
+      }
+      var items = servicesForDate(c.iso);
+      var cls = 'month-cell'+(c.iso===todayIso?' today':'')+(c.iso===state.selectedDate?' selected':'')+(items.length?' has-items':'');
+      var shown = items.slice(0,3);
+      var chipsHtml = shown.map(function(s){
+        return '<button type="button" class="month-chip'+(s.completed?' is-done':'')+' '+(s.paymentStatus==='pagado'?'pagado':'pendiente')+'" data-id="'+s.id+'">'+escapeHtml((s.time?s.time+' ':'')+ (s.clientName||''))+'</button>';
+      }).join('');
+      var more = items.length>3 ? '<span class="month-more">+'+(items.length-3)+' más</span>' : '';
+      html += '<button type="button" class="'+cls+'" data-iso="'+c.iso+'"><span class="mn">'+c.d+'</span>'+chipsHtml+more+'</button>';
+    });
+    grid.innerHTML = html;
+    grid.querySelectorAll('.month-cell:not(.out)').forEach(function(el){
+      el.addEventListener('click', function(){ state.selectedDate = el.getAttribute('data-iso'); switchView('day'); });
+    });
+    grid.querySelectorAll('.month-chip').forEach(function(el){
+      el.addEventListener('click', function(e){ e.stopPropagation(); openDetail(el.getAttribute('data-id')); });
+    });
+  }
+
+  function renderAgendaView(){
+    renderAgendaHeader();
+    if(!state.dbReady) return;
+    if(state.view==='week') renderWeekView();
+    else if(state.view==='month') renderMonthView();
+    else renderDayView();
+  }
+
+  function switchView(view){
+    state.view = view;
+    document.querySelectorAll('#view-switch button').forEach(function(b){
+      b.classList.toggle('active', b.getAttribute('data-view')===view);
+    });
+    document.getElementById('agenda-list').hidden = view!=='day';
+    document.getElementById('week-grid').hidden = view!=='week';
+    document.getElementById('month-grid').hidden = view!=='month';
+    renderAgendaView();
+  }
+  document.getElementById('view-switch').addEventListener('click', function(e){
+    var btn = e.target.closest('button[data-view]');
+    if(btn) switchView(btn.getAttribute('data-view'));
+  });
+
+  /* ---------------- render: clients tab ---------------- */
+  function renderClientsTab(){
+    document.getElementById('clients-count').textContent = state.clients.size ? '('+state.clients.size+')' : '';
+    var q = (document.getElementById('client-search').value||'').trim().toLowerCase();
+    var arr = Array.from(state.clients.entries()).map(function(e){ return Object.assign({id:e[0]}, e[1]); });
+    if(q){
+      arr = arr.filter(function(c){
+        return (c.name||'').toLowerCase().indexOf(q)>-1 ||
+          (c.phone||'').toLowerCase().indexOf(q)>-1 ||
+          (c.address||'').toLowerCase().indexOf(q)>-1;
+      });
+    }
+    arr.sort(function(a,b){ return (a.name||'').localeCompare(b.name||''); });
+
+    var wrap = document.getElementById('clients-items');
+    if(!state.dbReady) return;
+    if(arr.length===0){
+      wrap.innerHTML = '<div class="empty-state" style="padding:24px 12px;"><div class="glyph">👥</div><div class="msg">'+(state.clients.size===0 ? 'Aún no hay clientes guardados. Se agregan automáticamente al crear una cita.' : 'Sin resultados.')+'</div></div>';
+    } else {
+      wrap.innerHTML = arr.map(function(c){
+        var cls = 'client-row' + (c.id===state.activeClientId ? ' active' : '');
+        return '<button class="'+cls+'" data-id="'+c.id+'"><span class="cn">'+escapeHtml(c.name||'Sin nombre')+'</span><span class="cp mono">'+escapeHtml(c.phone||'')+'</span></button>';
+      }).join('');
+      document.querySelectorAll('.client-row').forEach(function(el){
+        el.onclick = function(){ state.activeClientId = el.getAttribute('data-id'); renderClientsTab(); };
+      });
+    }
+    renderClientDetail();
+  }
+
+  function renderClientDetail(){
+    var box = document.getElementById('client-detail');
+    if(!state.activeClientId || !state.clients.has(state.activeClientId)){
+      box.innerHTML = '<div class="empty-state"><div class="glyph">👤</div><div class="msg">Selecciona un cliente para ver su información y el historial de servicios.</div></div>';
+      return;
+    }
+    var c = state.clients.get(state.activeClientId);
+    var history = servicesForClient(state.activeClientId);
+    var histHtml = history.length ? history.map(function(s){
+      var d = dateFromISO(s.date);
+      return '<button class="service-card" data-id="'+s.id+'" style="padding:10px 13px;">' +
+        '<div class="service-time" style="width:76px;"><span class="t mono" style="font-size:12.5px;">'+d.getDate()+' '+MONTHS[d.getMonth()].slice(0,3)+'</span><span class="tech">'+escapeHtml(s.time||'')+'</span></div>' +
+        '<div class="service-body"><div class="service-desc" style="font-size:13px; color:var(--ink);">'+escapeHtml(s.description||'')+(s.trackingCode?'<span class="track-code">'+escapeHtml(s.trackingCode)+'</span>':'')+'</div></div>' +
+        '<div class="service-right"><span class="amount" style="font-size:13px;">'+formatCLP(s.amount)+'</span><span class="status-pill '+(s.paymentStatus==='pagado'?'pagado':'pendiente')+'">'+(s.paymentStatus==='pagado'?'Pagado':'Pendiente')+'</span></div>' +
+      '</button>';
+    }).join('') : '<div class="field-hint">Sin servicios registrados aún.</div>';
+
+    box.innerHTML = '<div class="client-card">' +
+      '<div class="detail-top"><h2>'+escapeHtml(c.name||'Sin nombre')+'</h2>' +
+        '<button class="btn btn-primary btn-sm" id="client-new-appt">+ Agendar</button></div>' +
+      '<div class="kv-grid">' +
+        '<div class="k">Teléfono</div><div class="v mono">'+escapeHtml(c.phone||'—')+'</div>' +
+        '<div class="k">Dirección</div><div class="v">'+(c.address ? '<a href="'+mapsUrl(c.address)+'" target="_blank" rel="noopener">'+escapeHtml(c.address)+' ↗</a>' : '—')+'</div>' +
+        '<div class="k">Cliente desde</div><div class="v">'+(c.createdAt ? new Date(c.createdAt).toLocaleDateString('es-CL') : '—')+'</div>' +
+      '</div>' +
+      '<div class="client-history"><h3>Historial de servicios ('+history.length+')</h3>'+histHtml+'</div>' +
+    '</div>';
+
+    document.getElementById('client-new-appt').onclick = function(){
+      openAppointmentForm(null, { clientName: c.name, phone: c.phone, address: c.address });
+    };
+    document.querySelectorAll('#client-detail .service-card').forEach(function(el){
+      el.onclick = function(){ openDetail(el.getAttribute('data-id')); };
+    });
+  }
+
+  /* ---------------- render: technicians tab ---------------- */
+  function renderTechniciansTab(){
+    document.getElementById('techs-count').textContent = state.technicians.size ? '('+state.technicians.size+')' : '';
+    var q = (document.getElementById('tech-search').value||'').trim().toLowerCase();
+    var arr = Array.from(state.technicians.entries()).map(function(e){ return Object.assign({id:e[0]}, e[1]); });
+    if(q){
+      arr = arr.filter(function(t){
+        return (t.name||'').toLowerCase().indexOf(q)>-1 || (t.phone||'').toLowerCase().indexOf(q)>-1;
+      });
+    }
+    arr.sort(function(a,b){ return (a.name||'').localeCompare(b.name||''); });
+
+    var wrap = document.getElementById('techs-items');
+    if(!state.dbReady) return;
+    if(arr.length===0){
+      wrap.innerHTML = '<div class="empty-state" style="padding:24px 12px;"><div class="glyph">🔧</div><div class="msg">'+(state.technicians.size===0 ? 'Aún no hay técnicos guardados. Agrégalos aquí o desde el formulario de una cita.' : 'Sin resultados.')+'</div></div>';
+    } else {
+      wrap.innerHTML = arr.map(function(t){
+        var cls = 'client-row' + (t.id===state.activeTechId ? ' active' : '');
+        return '<button class="'+cls+'" data-id="'+t.id+'"><span class="cn">'+escapeHtml(t.name||'Sin nombre')+'</span><span class="cp mono">'+escapeHtml(t.phone||t.specialty||'')+'</span></button>';
+      }).join('');
+      document.querySelectorAll('#techs-items .client-row').forEach(function(el){
+        el.onclick = function(){ state.activeTechId = el.getAttribute('data-id'); renderTechniciansTab(); };
+      });
+    }
+    renderTechDetail();
+  }
+
+  function renderTechDetail(){
+    var box = document.getElementById('tech-detail');
+    if(!state.activeTechId || !state.technicians.has(state.activeTechId)){
+      box.innerHTML = '<div class="empty-state"><div class="glyph">🔧</div><div class="msg">Selecciona un técnico para ver su información y los servicios asignados.</div></div>';
+      return;
+    }
+    var t = state.technicians.get(state.activeTechId);
+    var history = servicesForTechnician(t.name);
+    var histHtml = history.length ? history.map(function(s){
+      var d = dateFromISO(s.date);
+      return '<button class="service-card" data-id="'+s.id+'" style="padding:10px 13px;">' +
+        '<div class="service-time" style="width:76px;"><span class="t mono" style="font-size:12.5px;">'+d.getDate()+' '+MONTHS[d.getMonth()].slice(0,3)+'</span><span class="tech">'+escapeHtml(s.time||'')+'</span></div>' +
+        '<div class="service-body"><div class="service-client" style="font-size:13px;">'+escapeHtml(s.clientName||'')+(s.trackingCode?'<span class="track-code">'+escapeHtml(s.trackingCode)+'</span>':'')+'</div><div class="service-desc" style="font-size:12px;">'+escapeHtml(s.description||'')+'</div></div>' +
+        '<div class="service-right"><span class="amount" style="font-size:13px;">'+formatCLP(s.amount)+'</span><span class="status-pill '+(s.paymentStatus==='pagado'?'pagado':'pendiente')+'">'+(s.paymentStatus==='pagado'?'Pagado':'Pendiente')+'</span></div>' +
+      '</button>';
+    }).join('') : '<div class="field-hint">Sin servicios asignados aún.</div>';
+
+    box.innerHTML = '<div class="client-card">' +
+      '<div class="detail-top"><h2>'+escapeHtml(t.name||'Sin nombre')+'</h2>' +
+        '<span style="display:flex; gap:8px;">' +
+          '<button class="btn btn-ghost btn-sm" id="tech-edit">Editar</button>' +
+          '<button class="btn btn-primary btn-sm" id="tech-new-appt">+ Agendar</button>' +
+        '</span></div>' +
+      '<div class="kv-grid">' +
+        '<div class="k">Especialidad</div><div class="v">'+escapeHtml(t.specialty||'—')+'</div>' +
+        '<div class="k">Teléfono</div><div class="v mono">'+escapeHtml(t.phone||'—')+'</div>' +
+        '<div class="k">Comisión</div><div class="v">'+(t.commissionPct?t.commissionPct+'%':'—')+'</div>' +
+        '<div class="k">Técnico desde</div><div class="v">'+(t.createdAt ? new Date(t.createdAt).toLocaleDateString('es-CL') : '—')+'</div>' +
+      '</div>' +
+      '<div id="tech-del-slot"></div>' +
+      '<div class="client-history"><h3>Servicios asignados ('+history.length+')</h3>'+histHtml+'</div>' +
+      '<div class="button-row">' +
+        '<button class="btn btn-soft btn-sm" id="tech-pagos">Ver pagos de este técnico</button>' +
+        '<button class="btn btn-danger btn-sm" id="tech-delete">Eliminar técnico</button>' +
+      '</div>' +
+    '</div>';
+
+    document.getElementById('tech-new-appt').onclick = function(){
+      openAppointmentForm(null, { technician: t.name });
+    };
+    document.getElementById('tech-edit').onclick = function(){
+      openTechnicianForm(Object.assign({id:t.id}, t));
+    };
+    document.getElementById('tech-pagos').onclick = function(){
+      switchTab('pagos');
+      populatePayTechOptions();
+      document.getElementById('pay-tech').value = t.name;
+      renderPagosTab();
+    };
+    document.getElementById('tech-delete').onclick = function(){
+      document.getElementById('tech-del-slot').innerHTML =
+        '<div class="confirm-box"><span>¿Eliminar a '+escapeHtml(t.name)+'? Los servicios ya agendados no se ven afectados.</span>' +
+        '<span style="display:flex; gap:8px;"><button class="btn btn-ghost btn-sm" id="tech-cancel-del">Cancelar</button><button class="btn btn-danger btn-sm" id="tech-confirm-del">Eliminar</button></span></div>';
+      document.getElementById('tech-cancel-del').onclick = function(){ document.getElementById('tech-del-slot').innerHTML=''; };
+      document.getElementById('tech-confirm-del').onclick = async function(){
+        await state.db.collection('technicians').doc(t.id).delete();
+        state.activeTechId = null;
+      };
+    };
+    document.querySelectorAll('#tech-detail .service-card').forEach(function(el){
+      el.onclick = function(){ openDetail(el.getAttribute('data-id')); };
+    });
+  }
+
+  function openTechnicianForm(existing){
+    var isEdit = !!existing;
+    var data = existing || { name:'', phone:'', specialty:'' };
+    var specialties = ['', 'Cerrajería', 'Vidriería', 'Electricidad', 'General'];
+    var html =
+      '<div class="modal-head"><h2>'+(isEdit?'Editar técnico':'Nuevo técnico')+'</h2><button class="icon-btn" id="m-close">✕</button></div>' +
+      '<div class="modal-body">' +
+        '<div class="field"><label>Nombre</label><input type="text" id="t-name" value="'+escapeHtml(data.name)+'" placeholder="Nombre del técnico" required></div>' +
+        '<div class="field-row">' +
+          '<div class="field"><label>Teléfono</label><input type="tel" id="t-phone" value="'+escapeHtml(data.phone)+'" placeholder="Opcional"></div>' +
+          '<div class="field"><label>Especialidad</label><select id="t-specialty">' +
+            specialties.map(function(s){ return '<option value="'+s+'"'+(data.specialty===s?' selected':'')+'>'+(s||'Sin especialidad')+'</option>'; }).join('') +
+          '</select></div>' +
+        '</div>' +
+        '<div class="field"><label>Comisión (%)</label><input type="number" id="t-commission" min="0" max="100" step="1" value="'+escapeHtml(data.commissionPct||'')+'" placeholder="Opcional, ej: 40">' +
+          '<div class="field-hint">Se usa en la pestaña Pagos para calcular cuánto pagarle por sus servicios.</div></div>' +
+        '<div class="form-error" id="t-error">Ingresa el nombre del técnico.</div>' +
+        '<div class="modal-actions">' +
+          '<button class="btn btn-ghost" id="m-cancel">Cancelar</button>' +
+          '<button class="btn btn-primary" id="m-save">'+(isEdit?'Guardar cambios':'Guardar técnico')+'</button>' +
+        '</div>' +
+      '</div>';
+    openModal(html);
+    document.getElementById('m-close').onclick = closeModal;
+    document.getElementById('m-cancel').onclick = closeModal;
+    document.getElementById('m-save').onclick = async function(){
+      var name = document.getElementById('t-name').value.trim();
+      if(!name){ document.getElementById('t-error').classList.add('show'); return; }
+      if(!state.db){ document.getElementById('t-error').textContent='Sin conexión a la base de datos.'; document.getElementById('t-error').classList.add('show'); return; }
+      var payload = {
+        name: name,
+        phone: document.getElementById('t-phone').value.trim(),
+        specialty: document.getElementById('t-specialty').value,
+        commissionPct: document.getElementById('t-commission').value ? Number(document.getElementById('t-commission').value) : ''
+      };
+      var btn = document.getElementById('m-save');
+      btn.disabled = true; btn.textContent = 'Guardando…';
+      try{
+        if(isEdit){
+          await state.db.collection('technicians').doc(existing.id).update(payload);
+        } else {
+          payload.createdAt = new Date().toISOString();
+          await state.db.collection('technicians').add(payload);
+        }
+        closeModal();
+      }catch(err){
+        console.error(err);
+        document.getElementById('t-error').textContent = 'No se pudo guardar. Intenta de nuevo.';
+        document.getElementById('t-error').classList.add('show');
+        btn.disabled = false; btn.textContent = isEdit?'Guardar cambios':'Guardar técnico';
+      }
+    };
+  }
+  document.getElementById('btn-new-tech').onclick = function(){ openTechnicianForm(null); };
+  document.getElementById('tech-search').oninput = function(){ renderTechniciansTab(); };
+
+  /* ---------------- técnico combobox (used inside appointment form) ---------------- */
+  function techPanelHtml(query){
+    var q = (query||'').trim().toLowerCase();
+    var arr = Array.from(state.technicians.entries()).map(function(e){ return Object.assign({id:e[0]}, e[1]); });
+    arr.sort(function(a,b){ return (a.name||'').localeCompare(b.name||''); });
+    if(q) arr = arr.filter(function(t){ return (t.name||'').toLowerCase().indexOf(q)>-1; });
+
+    var html = '';
+    if(arr.length===0){
+      html += '<div class="combo-empty">'+(state.technicians.size===0 ? 'Aún no hay técnicos guardados.' : 'Sin resultados.')+'</div>';
+    } else {
+      arr.forEach(function(t){
+        html += '<button type="button" class="combo-item" data-name="'+escapeHtml(t.name)+'"><span>'+escapeHtml(t.name)+'</span>'+(t.specialty?'<span class="spec">'+escapeHtml(t.specialty)+'</span>':'')+'</button>';
+      });
+    }
+    var trimmed = (query||'').trim();
+    if(trimmed && !arr.some(function(t){ return (t.name||'').toLowerCase()===trimmed.toLowerCase(); })){
+      html += '<button type="button" class="combo-add" data-newname="'+escapeHtml(trimmed)+'">+ Guardar "'+escapeHtml(trimmed)+'" como nuevo técnico</button>';
+    }
+    return html;
+  }
+
+  document.addEventListener('mousedown', function(e){
+    document.querySelectorAll('.combo-panel:not([hidden])').forEach(function(panel){
+      var wrapper = panel.closest('.combo');
+      if(wrapper && !wrapper.contains(e.target)) panel.hidden = true;
+    });
+  });
+
+  function setupTechCombo(){
+    var input = document.getElementById('f-tech');
+    var panel = document.getElementById('tech-panel');
+    if(!input || !panel) return;
+    function open(){ panel.innerHTML = techPanelHtml(input.value); panel.hidden = false; }
+    input.addEventListener('focus', open);
+    input.addEventListener('input', open);
+    panel.addEventListener('mousedown', async function(e){
+      var itemBtn = e.target.closest('.combo-item');
+      var addBtn = e.target.closest('.combo-add');
+      if(itemBtn){
+        e.preventDefault();
+        input.value = itemBtn.getAttribute('data-name');
+        panel.hidden = true;
+      } else if(addBtn){
+        e.preventDefault();
+        var name = addBtn.getAttribute('data-newname');
+        input.value = name;
+        panel.hidden = true;
+        if(state.db){
+          try{ await state.db.collection('technicians').add({ name: name, phone:'', specialty:'', createdAt: new Date().toISOString() }); }
+          catch(err){ console.error(err); }
+        }
+      }
+    });
+  }
+
+  /* ---------------- status filter (agenda) ---------------- */
+  document.getElementById('status-filter').addEventListener('click', function(e){
+    var btn = e.target.closest('button[data-filter]');
+    if(!btn) return;
+    state.filter = btn.getAttribute('data-filter');
+    document.querySelectorAll('#status-filter button').forEach(function(b){ b.classList.toggle('active', b===btn); });
+    renderAll();
+  });
+
+  /* ---------------- finanzas: gastos del mes por servicio ---------------- */
+  function renderFinanzasTab(){
+    var monthEl = document.getElementById('fin-month');
+    if(!monthEl.value) monthEl.value = state.calYear + '-' + pad2(state.calMonth+1);
+    var prefix = monthEl.value;
+    var f = document.getElementById('fin-filter').value;
+    var box = document.getElementById('fin-results');
+    var html = '';
+
+    /* ---- A) Servicios del mes (por fecha del servicio) ---- */
+    var items = [];
+    state.services.forEach(function(v,id){
+      if((v.date||'').slice(0,7)===prefix && statusMatches(v,f)) items.push(Object.assign({id:id}, v));
+    });
+    items.sort(function(a,b){ return (a.date+a.time).localeCompare(b.date+b.time); });
+    var billed=0, spent=0, paid=0, pending=0, uninvoicedAmt=0;
+    items.forEach(function(s){
+      var a = Number(s.amount)||0;
+      billed += a; spent += expensesTotal(s);
+      if(s.paymentStatus==='pagado') paid += a; else pending += a;
+      if(!s.invoiced) uninvoicedAmt += a;
+    });
+    var net = billed - spent;
+
+    html += '<div class="pay-summary"><h3 style="margin:0; font-size:16px; font-family:var(--font-display);">Servicios de '+monthLabel(prefix)+' <span class="fin-note">(por fecha del servicio)</span></h3>';
+    if(items.length===0){
+      html += '<div class="empty-state"><div class="glyph">🧾</div><div class="msg">No hay servicios para este mes y filtro.</div></div></div>';
+    } else {
+      html +=
+      '<div class="pay-stat-grid">' +
+        '<div class="pay-stat"><div class="l">Facturado</div><div class="v">'+formatCLP(billed)+'</div></div>' +
+        '<div class="pay-stat"><div class="l">Gastos pagados</div><div class="v">'+formatCLP(spent)+'</div></div>' +
+        '<div class="pay-stat"><div class="l">Queda (monto − gastos)</div><div class="v '+(net<0?'neg':'pos')+'">'+formatNet(net)+'</div></div>' +
+        '<div class="pay-stat"><div class="l">Cobrado</div><div class="v">'+formatCLP(paid)+'</div></div>' +
+        '<div class="pay-stat"><div class="l">Por cobrar</div><div class="v">'+formatCLP(pending)+'</div></div>' +
+        '<div class="pay-stat"><div class="l">Sin factura</div><div class="v">'+formatCLP(uninvoicedAmt)+'</div></div>' +
+      '</div>' +
+      '<div class="pay-table-wrap"><table class="pay-table"><thead><tr><th>Fecha</th><th>Cliente / servicio</th><th>Factura</th><th>Monto</th><th>Gastos</th><th>Queda</th></tr></thead><tbody>' +
+      items.map(function(s){
+        var d = dateFromISO(s.date);
+        var exps = Array.isArray(s.expenses) ? s.expenses : [];
+        var rowNet = (Number(s.amount)||0) - expensesTotal(s);
+        return '<tr class="fin-row" data-id="'+s.id+'"><td>'+d.getDate()+' '+MONTHS[d.getMonth()].slice(0,3)+'</td>' +
+          '<td>'+escapeHtml(s.clientName||'')+(s.trackingCode?' <span class="mono" style="color:var(--ink-faint)">'+escapeHtml(s.trackingCode)+'</span>':'')+
+            '<div class="fin-exp">'+escapeHtml(s.description||'')+'</div>' +
+            (exps.length ? '<div class="fin-exp">Gastos: '+exps.map(function(e){ return escapeHtml(e.desc)+' '+formatCLP(expParts(e).gross); }).join(' · ')+'</div>' : '') +
+          '</td>' +
+          '<td class="mono">'+(s.invoiced ? escapeHtml(s.invoiceNumber||'Sí') : '—')+'</td>' +
+          '<td class="mono">'+formatCLP(s.amount)+'</td><td class="mono">'+formatCLP(expensesTotal(s))+'</td>' +
+          '<td class="mono" style="color:'+(rowNet<0?'var(--danger)':'var(--green-ink)')+'">'+formatNet(rowNet)+'</td></tr>';
+      }).join('') +
+      '</tbody><tfoot><tr><td></td><td><b>Total</b></td><td></td><td class="mono"><b>'+formatCLP(billed)+'</b></td><td class="mono"><b>'+formatCLP(spent)+'</b></td><td class="mono"><b>'+formatNet(net)+'</b></td></tr></tfoot></table></div>' +
+      '<button class="btn btn-ghost btn-sm" id="btn-export-fin">⬇ CSV de servicios</button>' +
+      '<div class="wa-hint" id="fin-hint" hidden></div></div>';
+    }
+
+    /* ---- B) Cuadre mensual de IVA (por fecha de factura y fecha de compra) ---- */
+    var sales = salesInMonth(prefix), purch = purchasesInMonth(prefix);
+    var netV = sumBy(sales,'net'), ivaV = sumBy(sales,'iva'), totV = sumBy(sales,'total');
+    var netC = sumBy(purch,'net'), ivaC = sumBy(purch,'iva'), totC = sumBy(purch,'gross');
+    var due = ivaV - ivaC;
+    html += '<div class="fin-section">' +
+      '<h3>Cuadre de IVA de '+monthLabel(prefix)+'</h3>' +
+      '<div class="fin-note">Las ventas se asignan al mes de la <b>fecha de factura</b> y las compras al mes de la <b>fecha de compra</b>. Este cuadre no depende del filtro "Mostrar".</div>' +
+      '<div class="pay-stat-grid">' +
+        '<div class="pay-stat"><div class="l">IVA ventas (débito)</div><div class="v">'+formatCLP(ivaV)+'</div></div>' +
+        '<div class="pay-stat"><div class="l">IVA compras (crédito)</div><div class="v">'+formatCLP(ivaC)+'</div></div>' +
+        '<div class="pay-stat"><div class="l">'+(due<0 ? 'Remanente de IVA a favor' : 'IVA a pagar')+'</div><div class="v '+(due<0?'pos':'neg')+'">'+formatCLP(Math.abs(due))+'</div></div>' +
+        '<div class="pay-stat"><div class="l">Ventas netas</div><div class="v">'+formatCLP(netV)+'</div></div>' +
+        '<div class="pay-stat"><div class="l">Compras netas</div><div class="v">'+formatCLP(netC)+'</div></div>' +
+        '<div class="pay-stat"><div class="l">Resultado (ventas − compras netas)</div><div class="v '+(netV-netC<0?'neg':'pos')+'">'+formatNet(netV-netC)+'</div></div>' +
+      '</div>' +
+
+      '<h4>Ventas facturadas en el mes (IVA débito)</h4>' +
+      (sales.length ? '<div class="pay-table-wrap"><table class="pay-table"><thead><tr><th>Fecha factura</th><th>N° factura</th><th>Cliente</th><th>Neto</th><th>IVA</th><th>Total</th></tr></thead><tbody>' +
+        sales.map(function(r){
+          return '<tr class="fin-row" data-id="'+r.id+'"><td>'+fmtShortDate(r.when)+'</td><td class="mono">'+escapeHtml(r.s.invoiceNumber||'—')+'</td>' +
+            '<td>'+escapeHtml(r.s.clientName||'')+'<div class="fin-exp">'+escapeHtml(r.s.description||'')+'</div></td>' +
+            '<td class="mono">'+formatCLP(r.net)+'</td><td class="mono">'+formatCLP(r.iva)+'</td><td class="mono">'+formatCLP(r.total)+'</td></tr>';
+        }).join('') +
+        '</tbody><tfoot><tr><td></td><td></td><td><b>Total ventas</b></td><td class="mono"><b>'+formatCLP(netV)+'</b></td><td class="mono"><b>'+formatCLP(ivaV)+'</b></td><td class="mono"><b>'+formatCLP(totV)+'</b></td></tr></tfoot></table></div>'
+        : '<div class="fin-note">No hay facturas emitidas en este mes.</div>') +
+
+      '<h4>Compras y gastos del mes (IVA crédito)</h4>' +
+      (purch.length ? '<div class="pay-table-wrap"><table class="pay-table"><thead><tr><th>Fecha compra</th><th>Servicio</th><th>Detalle</th><th>Neto</th><th>IVA</th><th>Total pagado</th></tr></thead><tbody>' +
+        purch.map(function(r){
+          return '<tr class="fin-row" data-id="'+r.id+'"><td>'+fmtShortDate(r.when)+'</td>' +
+            '<td>'+escapeHtml(r.s.clientName||'')+(r.s.trackingCode?' <span class="mono" style="color:var(--ink-faint)">'+escapeHtml(r.s.trackingCode)+'</span>':'')+'</td>' +
+            '<td>'+escapeHtml(r.e.desc||'')+(r.e.qty>1?' <span class="fin-exp">('+r.e.qty+' × '+formatCLP(r.e.price)+')</span>':'')+(r.e.iva===true?'':' <span class="fin-exp">sin IVA</span>')+'</td>' +
+            '<td class="mono">'+formatCLP(r.net)+'</td><td class="mono">'+formatCLP(r.iva)+'</td><td class="mono">'+formatCLP(r.gross)+'</td></tr>';
+        }).join('') +
+        '</tbody><tfoot><tr><td></td><td></td><td><b>Total compras</b></td><td class="mono"><b>'+formatCLP(netC)+'</b></td><td class="mono"><b>'+formatCLP(ivaC)+'</b></td><td class="mono"><b>'+formatCLP(totC)+'</b></td></tr></tfoot></table></div>'
+        : '<div class="fin-note">No hay compras registradas en este mes.</div>') +
+
+      '<button class="btn btn-ghost btn-sm" id="btn-export-iva">⬇ CSV del cuadre de IVA</button>' +
+      '<div class="wa-hint" id="iva-hint" hidden></div>' +
+    '</div>';
+
+    box.innerHTML = html;
+    box.querySelectorAll('.fin-row').forEach(function(tr){
+      tr.addEventListener('click', function(){ openDetail(tr.getAttribute('data-id')); });
+    });
+
+    var csvServ = document.getElementById('btn-export-fin');
+    if(csvServ) csvServ.onclick = function(){
+      var rows = [['N° de seguimiento','Fecha','Cliente','Descripción','Monto','Gastos pagados','Queda','Estado de cobro','Realizado','Factura emitida','N° de factura','Detalle de gastos']];
+      items.forEach(function(s){
+        var exps = Array.isArray(s.expenses) ? s.expenses : [];
+        rows.push([s.trackingCode||'', s.date, s.clientName||'', s.description||'', Number(s.amount)||0, expensesTotal(s),
+          (Number(s.amount)||0) - expensesTotal(s), s.paymentStatus==='pagado'?'Pagado':'Pendiente', s.completed?'Sí':'No',
+          s.invoiced?'Sí':'No', s.invoiceNumber||'',
+          exps.map(function(e){ return e.desc+': '+expParts(e).gross; }).join(' | ')]);
+      });
+      rows.push(['','','','Total', billed, spent, net, '', '', '', '', '']);
+      saveCsv('servicios-cerravolt-'+prefix+'.csv', rowsToCsv(rows), csvServ, document.getElementById('fin-hint'));
+    };
+    document.getElementById('btn-export-iva').onclick = function(){
+      var rows = [['CUADRE DE IVA '+monthLabel(prefix)], [],
+        ['VENTAS FACTURADAS'], ['Fecha factura','N° factura','Cliente','Descripción','Neto','IVA','Total']];
+      sales.forEach(function(r){ rows.push([r.when, r.s.invoiceNumber||'', r.s.clientName||'', r.s.description||'', r.net, r.iva, r.total]); });
+      rows.push(['','','','Total ventas', netV, ivaV, totV], [],
+        ['COMPRAS Y GASTOS'], ['Fecha compra','Cliente','N° de seguimiento','Detalle','Neto','IVA','Total pagado']);
+      purch.forEach(function(r){ rows.push([r.when, r.s.clientName||'', r.s.trackingCode||'', r.e.desc||'', r.net, r.iva, r.gross]); });
+      rows.push(['','','','Total compras', netC, ivaC, totC], [],
+        ['RESUMEN'], ['IVA ventas (débito)', ivaV], ['IVA compras (crédito)', ivaC],
+        [due < 0 ? 'Remanente de IVA a favor' : 'IVA a pagar', Math.abs(due)],
+        ['Ventas netas', netV], ['Compras netas', netC], ['Resultado (ventas - compras netas)', netV - netC]);
+      saveCsv('cuadre-iva-cerravolt-'+prefix+'.csv', rowsToCsv(rows), document.getElementById('btn-export-iva'), document.getElementById('iva-hint'));
+    };
+  }
+  ['fin-month','fin-filter'].forEach(function(id){
+    document.getElementById(id).addEventListener('change', renderFinanzasTab);
+  });
+
+  /* ---------------- tabs ---------------- */
+  function switchTab(tab){
+    state.activeTab = tab;
+    document.getElementById('tab-agenda').classList.toggle('active', tab==='agenda');
+    document.getElementById('tab-clientes').classList.toggle('active', tab==='clientes');
+    document.getElementById('tab-tecnicos').classList.toggle('active', tab==='tecnicos');
+    document.getElementById('tab-pagos').classList.toggle('active', tab==='pagos');
+    document.getElementById('tab-finanzas').classList.toggle('active', tab==='finanzas');
+    document.getElementById('view-agenda').hidden = tab!=='agenda';
+    document.getElementById('view-clientes').hidden = tab!=='clientes';
+    document.getElementById('view-tecnicos').hidden = tab!=='tecnicos';
+    document.getElementById('view-pagos').hidden = tab!=='pagos';
+    document.getElementById('view-finanzas').hidden = tab!=='finanzas';
+  }
+  document.getElementById('tab-agenda').onclick = function(){ switchTab('agenda'); };
+  document.getElementById('tab-clientes').onclick = function(){ switchTab('clientes'); renderClientsTab(); };
+  document.getElementById('tab-tecnicos').onclick = function(){ switchTab('tecnicos'); renderTechniciansTab(); };
+  document.getElementById('tab-pagos').onclick = function(){ switchTab('pagos'); populatePayTechOptions(); renderPagosTab(); };
+  document.getElementById('tab-finanzas').onclick = function(){ switchTab('finanzas'); renderFinanzasTab(); };
+  document.getElementById('client-search').oninput = function(){ renderClientsTab(); };
+
+  /* ---------------- CSV helpers (shared) ---------------- */
+  function rowsToCsv(rows){
+    return '﻿' + rows.map(function(r){ return r.map(csvEscape).join(','); }).join('\r\n');
+  }
+  function saveCsv(filename, csv, btn, hintEl){
+    if(hintEl){ hintEl.hidden = true; hintEl.textContent = ''; }
+    try{
+      var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 2000);
+    }catch(err){
+      console.error('csv export error', err);
+      if(hintEl){ hintEl.textContent = 'No se pudo generar la descarga. Intenta de nuevo.'; hintEl.hidden = false; }
+    }
+  }
+
+  /* ---------------- export clients (CSV) ---------------- */
+  function exportClientsCsv(){
+    var hint = document.getElementById('export-clients-hint');
+    var btn = document.getElementById('btn-export-clients');
+    if(state.clients.size===0){
+      hint.textContent = 'Aún no hay clientes guardados para exportar.';
+      hint.hidden = false;
+      return;
+    }
+    var rows = [['Nombre','Teléfono','Dirección','Cliente desde','Servicios registrados']];
+    Array.from(state.clients.entries())
+      .map(function(e){ return Object.assign({id:e[0]}, e[1]); })
+      .sort(function(a,b){ return (a.name||'').localeCompare(b.name||''); })
+      .forEach(function(c){
+        rows.push([
+          c.name || '',
+          c.phone || '',
+          c.address || '',
+          c.createdAt ? new Date(c.createdAt).toLocaleDateString('es-CL') : '',
+          String(servicesForClient(c.id).length)
+        ]);
+      });
+    saveCsv('clientes-cerravolt-' + isoFromDate(new Date()) + '.csv', rowsToCsv(rows), btn, hint);
+  }
+  document.getElementById('btn-export-clients').onclick = exportClientsCsv;
+
+  /* ---------------- global search (N° de seguimiento) ---------------- */
+  function globalSearchResultsHtml(query){
+    var q = query.trim().toLowerCase();
+    if(!q) return '';
+    var matches = [];
+    state.services.forEach(function(v,id){
+      var code = (v.trackingCode||'').toLowerCase();
+      var name = (v.clientName||'').toLowerCase();
+      var desc = (v.description||'').toLowerCase();
+      var phone = (v.phone||'').toLowerCase();
+      var address = (v.address||'').toLowerCase();
+      if(code.indexOf(q)>-1 || name.indexOf(q)>-1 || desc.indexOf(q)>-1 || phone.indexOf(q)>-1 || address.indexOf(q)>-1){
+        matches.push(Object.assign({id:id}, v));
+      }
+    });
+    matches.sort(function(a,b){ return (b.date+b.time).localeCompare(a.date+a.time); });
+    matches = matches.slice(0, 8);
+    if(matches.length===0) return '<div class="combo-empty">Sin resultados.</div>';
+    return matches.map(function(s){
+      var d = dateFromISO(s.date);
+      return '<button type="button" class="combo-item" data-id="'+s.id+'" style="align-items:flex-start;">' +
+        '<span style="display:flex; flex-direction:column; gap:1px; min-width:0;">' +
+          '<span>'+(s.trackingCode?'<span class="mono" style="font-weight:700;">'+escapeHtml(s.trackingCode)+'</span> · ':'')+escapeHtml(s.clientName||'Sin nombre')+'</span>' +
+          (s.address ? '<span style="font-size:10.5px; color:var(--ink-faint); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">'+escapeHtml(s.address)+(s.phone?' · '+escapeHtml(s.phone):'')+'</span>' : '') +
+        '</span>' +
+        '<span class="spec" style="flex-shrink:0;">'+d.getDate()+' '+MONTHS[d.getMonth()].slice(0,3)+'</span>' +
+      '</button>';
+    }).join('');
+  }
+  (function setupGlobalSearch(){
+    var input = document.getElementById('global-search');
+    var panel = document.getElementById('global-search-panel');
+    function open(){
+      var html = globalSearchResultsHtml(input.value);
+      if(!html){ panel.hidden = true; return; }
+      panel.innerHTML = html;
+      panel.hidden = false;
+    }
+    input.addEventListener('input', open);
+    input.addEventListener('focus', open);
+    panel.addEventListener('mousedown', function(e){
+      var itemBtn = e.target.closest('.combo-item');
+      if(itemBtn){
+        e.preventDefault();
+        panel.hidden = true;
+        input.value = '';
+        openDetail(itemBtn.getAttribute('data-id'));
+      }
+    });
+  })();
+
+  /* ---------------- pagos: cálculo de pago a técnicos ---------------- */
+  function populatePayTechOptions(){
+    var sel = document.getElementById('pay-tech');
+    var current = sel.value;
+    var names = Array.from(state.technicians.values()).map(function(t){ return t.name; }).filter(Boolean).sort();
+    sel.innerHTML = '<option value="">Todos los técnicos</option>' +
+      names.map(function(n){ return '<option value="'+escapeHtml(n)+'">'+escapeHtml(n)+'</option>'; }).join('');
+    if(names.indexOf(current) > -1) sel.value = current;
+  }
+
+  function computePayroll(techName, fromIso, toIso, onlyDone, onlyPaid){
+    var out = [];
+    state.services.forEach(function(v,id){
+      if(techName){ if(v.technician!==techName) return; }
+      else { if(!v.technician) return; }
+      if(v.date < fromIso || v.date > toIso) return;
+      if(onlyDone && !v.completed) return;
+      if(onlyPaid && v.paymentStatus!=='pagado') return;
+      out.push(Object.assign({id:id}, v));
+    });
+    out.sort(function(a,b){ return (a.date+a.time).localeCompare(b.date+b.time); });
+    return out;
+  }
+
+  function ensurePayRangeDefaults(){
+    var from = document.getElementById('pay-from');
+    var to = document.getElementById('pay-to');
+    if(!from.value || !to.value){
+      var y=state.calYear, m=state.calMonth;
+      from.value = y+'-'+pad2(m+1)+'-01';
+      to.value = y+'-'+pad2(m+1)+'-'+pad2(new Date(y,m+1,0).getDate());
+    }
+  }
+
+  function renderPagosTab(){
+    ensurePayRangeDefaults();
+    var techSel = document.getElementById('pay-tech').value;
+    var from = document.getElementById('pay-from').value;
+    var to = document.getElementById('pay-to').value;
+    var onlyDone = document.getElementById('pay-only-done').checked;
+    var onlyPaid = document.getElementById('pay-only-paid').checked;
+    var box = document.getElementById('pagos-results');
+
+    if(!techSel){
+      var rows = Array.from(state.technicians.values()).map(function(t){
+        var items = computePayroll(t.name, from, to, onlyDone, onlyPaid);
+        var total = items.reduce(function(a,s){ return a+(Number(s.amount)||0); }, 0);
+        var pct = Number(t.commissionPct)||0;
+        return { name:t.name, count:items.length, total:total, pct:pct, pay: pct ? total*pct/100 : null };
+      }).filter(function(r){ return r.count>0; });
+      rows.sort(function(a,b){ return b.total-a.total; });
+
+      if(rows.length===0){
+        box.innerHTML = '<div class="empty-state"><div class="glyph">💵</div><div class="msg">No hay servicios asignados a técnicos en este rango.</div></div>';
+        return;
+      }
+      var grandCount = rows.reduce(function(a,r){ return a+r.count; },0);
+      var grandTotal = rows.reduce(function(a,r){ return a+r.total; },0);
+      var grandPay = rows.reduce(function(a,r){ return a+(r.pay||0); },0);
+      box.innerHTML = '<div class="pay-summary">' +
+        '<div class="pay-stat-grid">' +
+          '<div class="pay-stat"><div class="l">Servicios</div><div class="v">'+grandCount+'</div></div>' +
+          '<div class="pay-stat"><div class="l">Total facturado</div><div class="v">'+formatCLP(grandTotal)+'</div></div>' +
+          '<div class="pay-stat"><div class="l">Total a pagar</div><div class="v">'+formatCLP(grandPay)+'</div></div>' +
+        '</div>' +
+        '<div class="pay-table-wrap"><table class="pay-table"><thead><tr><th>Técnico</th><th>Servicios</th><th>Facturado</th><th>Comisión</th><th>A pagar</th></tr></thead><tbody>' +
+        rows.map(function(r){
+          return '<tr><td>'+escapeHtml(r.name)+'</td><td class="mono">'+r.count+'</td><td class="mono">'+formatCLP(r.total)+'</td><td class="mono">'+(r.pct?r.pct+'%':'—')+'</td><td class="mono">'+(r.pay!=null?formatCLP(r.pay):'—')+'</td></tr>';
+        }).join('') +
+        '</tbody></table></div>' +
+        '<button class="btn btn-ghost btn-sm" id="btn-export-payroll">⬇ CSV</button>' +
+        '<div class="wa-hint" id="pagos-hint" hidden></div>' +
+      '</div>';
+      document.getElementById('btn-export-payroll').onclick = function(){
+        var csvRows = [['Técnico','Servicios','Monto facturado','Comisión %','Monto a pagar']];
+        rows.forEach(function(r){ csvRows.push([r.name, r.count, r.total, r.pct||'', r.pay!=null?r.pay:'']); });
+        saveCsv('pagos-cerravolt-'+from+'_a_'+to+'.csv', rowsToCsv(csvRows), document.getElementById('btn-export-payroll'), document.getElementById('pagos-hint'));
+      };
+    } else {
+      var items = computePayroll(techSel, from, to, onlyDone, onlyPaid);
+      var total = items.reduce(function(a,s){ return a+(Number(s.amount)||0); }, 0);
+      var techDoc = Array.from(state.technicians.values()).find(function(t){ return t.name===techSel; });
+      var pct = techDoc ? Number(techDoc.commissionPct)||0 : 0;
+      var pay = pct ? total*pct/100 : null;
+      var doneCount = items.filter(function(s){ return s.completed; }).length;
+      var paidCount = items.filter(function(s){ return s.paymentStatus==='pagado'; }).length;
+
+      box.innerHTML = '<div class="pay-summary">' +
+        '<h2 style="margin:0; font-size:18px; font-family:var(--font-display);">'+escapeHtml(techSel)+'</h2>' +
+        '<div class="pay-stat-grid">' +
+          '<div class="pay-stat"><div class="l">Servicios</div><div class="v">'+items.length+'</div></div>' +
+          '<div class="pay-stat"><div class="l">Realizados</div><div class="v">'+doneCount+'</div></div>' +
+          '<div class="pay-stat"><div class="l">Cobrados</div><div class="v">'+paidCount+'</div></div>' +
+          '<div class="pay-stat"><div class="l">Facturado</div><div class="v">'+formatCLP(total)+'</div></div>' +
+        '</div>' +
+        (pct ? '<div class="pay-stat-grid"><div class="pay-stat"><div class="l">Comisión ('+pct+'%) a pagar</div><div class="v" style="color:var(--green-ink)">'+formatCLP(pay)+'</div></div></div>'
+          : '<div class="field-hint">Este técnico no tiene una comisión configurada. Edítala en la pestaña Técnicos para calcular automáticamente el monto a pagar.</div>') +
+        (items.length ? '<div class="pay-table-wrap"><table class="pay-table"><thead><tr><th>Fecha</th><th>Cliente</th><th>Monto</th><th>Estado</th></tr></thead><tbody>' +
+          items.map(function(s){
+            var d = dateFromISO(s.date);
+            return '<tr><td>'+d.getDate()+' '+MONTHS[d.getMonth()].slice(0,3)+'</td><td>'+escapeHtml(s.clientName||'')+'</td><td class="mono">'+formatCLP(s.amount)+'</td><td>'+(s.paymentStatus==='pagado'?'Pagado':'Pendiente')+(s.completed?' · Realizado':'')+'</td></tr>';
+          }).join('') + '</tbody></table></div>'
+          : '<div class="empty-state" style="padding:24px;"><div class="msg">No hay servicios de este técnico en el rango seleccionado.</div></div>') +
+        '<button class="btn btn-ghost btn-sm" id="btn-export-payroll">⬇ CSV</button>' +
+        '<div class="wa-hint" id="pagos-hint" hidden></div>' +
+      '</div>';
+      document.getElementById('btn-export-payroll').onclick = function(){
+        var csvRows = [['N° de seguimiento','Fecha','Hora','Cliente','Monto','Estado de cobro','Realizado']];
+        items.forEach(function(s){
+          csvRows.push([s.trackingCode||'', s.date, s.time||'', s.clientName||'', s.amount||0, s.paymentStatus==='pagado'?'Pagado':'Pendiente', s.completed?'Sí':'No']);
+        });
+        csvRows.push(['','','','','','','']);
+        csvRows.push(['','Total facturado','','','',total,'']);
+        if(pct) csvRows.push(['','Comisión '+pct+'%','','','',pay,'']);
+        saveCsv('pago-'+techSel.toLowerCase().replace(/\s+/g,'-')+'-'+from+'_a_'+to+'.csv', rowsToCsv(csvRows), document.getElementById('btn-export-payroll'), document.getElementById('pagos-hint'));
+      };
+    }
+  }
+  ['pay-tech','pay-from','pay-to','pay-only-done','pay-only-paid'].forEach(function(id){
+    document.getElementById(id).addEventListener('change', renderPagosTab);
+  });
+
+  /* ---------------- date nav (day / week / month) ---------------- */
+  document.getElementById('day-prev').onclick = function(){ stepView(-1); };
+  document.getElementById('day-next').onclick = function(){ stepView(1); };
+  document.getElementById('day-today').onclick = function(){
+    var d = new Date();
+    state.selectedDate = isoFromDate(d);
+    state.calYear = d.getFullYear(); state.calMonth = d.getMonth();
+    renderAll();
+  };
+  function stepView(delta){
+    var d = dateFromISO(state.selectedDate);
+    if(state.view==='week') d.setDate(d.getDate()+delta*7);
+    else if(state.view==='month') d.setMonth(d.getMonth()+delta);
+    else d.setDate(d.getDate()+delta);
+    state.selectedDate = isoFromDate(d);
+    state.calYear = d.getFullYear(); state.calMonth = d.getMonth();
+    renderAll();
+  }
+
+  /* ---------------- modal helpers ---------------- */
+  var overlay = document.getElementById('overlay');
+  var modal = document.getElementById('modal');
+  var modalCloseHooks = [];
+  function runModalHook(){ var hs = modalCloseHooks; modalCloseHooks = []; hs.forEach(function(h){ h(); }); }
+  function openModal(html){
+    runModalHook();
+    modal.innerHTML = html;
+    overlay.hidden = false;
+  }
+  function closeModal(){ runModalHook(); overlay.hidden = true; modal.innerHTML = ''; }
+  overlay.addEventListener('click', function(e){ if(e.target===overlay) closeModal(); });
+  document.addEventListener('keydown', function(e){ if(e.key==='Escape' && !overlay.hidden) closeModal(); });
+
+  /* ---------------- appointment form ---------------- */
+  function openAppointmentForm(existing, prefill){
+    var isEdit = !!existing;
+    var data = existing || Object.assign({
+      date: state.selectedDate, time: '', clientName:'', phone:'', address:'',
+      description:'', quoteNumber:'', amount:'', technician:'', paymentStatus:'pendiente', notes:''
+    }, prefill||{});
+
+    var clientOptions = Array.from(state.clients.values()).map(function(c){
+      return '<option value="'+escapeHtml(c.name)+'">';
+    }).join('');
+
+    var html =
+      '<div class="modal-head"><h2>'+(isEdit?'Editar servicio':'Nueva cita')+'</h2><button class="icon-btn" id="m-close">✕</button></div>' +
+      '<div class="modal-body">' +
+        '<div class="field-row">' +
+          '<div class="field"><label>Fecha</label><input type="date" id="f-date" value="'+escapeHtml(data.date)+'" required></div>' +
+          '<div class="field"><label>Hora</label><input type="time" id="f-time" value="'+escapeHtml(data.time)+'" required></div>' +
+        '</div>' +
+        '<div class="field"><label>Cliente</label><input type="text" id="f-client" list="dl-clients" value="'+escapeHtml(data.clientName)+'" placeholder="Nombre del cliente" required>' +
+          '<datalist id="dl-clients">'+clientOptions+'</datalist></div>' +
+        '<div class="field-row">' +
+          '<div class="field"><label>Teléfono</label><input type="tel" id="f-phone" value="'+escapeHtml(data.phone)+'" placeholder="+56 9 1234 5678" required></div>' +
+          '<div class="field"><label>N° de cotización</label><input type="text" id="f-quote" value="'+escapeHtml(data.quoteNumber)+'" placeholder="Opcional"></div>' +
+        '</div>' +
+        '<div class="field"><label>Dirección</label><div class="field-inline"><input type="text" id="f-address" value="'+escapeHtml(data.address)+'" placeholder="Calle, número, comuna" required>' +
+          '<button type="button" class="icon-btn" id="f-address-maps" title="Buscar en Google Maps">🗺️</button></div></div>' +
+        '<div class="field"><label>Descripción del servicio</label><textarea id="f-desc" placeholder="Ej: Cambio de cerradura puerta principal" required>'+escapeHtml(data.description)+'</textarea></div>' +
+        '<div class="field-row">' +
+          '<div class="field"><label>Monto (CLP)</label><input type="number" id="f-amount" min="0" step="1" value="'+escapeHtml(data.amount)+'" placeholder="0" required></div>' +
+          '<div class="field"><label>Técnico asignado</label><div class="combo"><input type="text" id="f-tech" autocomplete="off" value="'+escapeHtml(data.technician)+'" placeholder="Seleccionar o escribir…">' +
+            '<div class="combo-panel" id="tech-panel" hidden></div></div></div>' +
+        '</div>' +
+        '<div class="field"><label>Estado de cobro</label><select id="f-status">' +
+          '<option value="pendiente"'+(data.paymentStatus!=='pagado'?' selected':'')+'>Pendiente</option>' +
+          '<option value="pagado"'+(data.paymentStatus==='pagado'?' selected':'')+'>Pagado</option>' +
+        '</select></div>' +
+        '<div class="field"><label>Notas (opcional)</label><textarea id="f-notes" placeholder="Notas internas">'+escapeHtml(data.notes)+'</textarea></div>' +
+        '<div class="form-error" id="f-error">Completa fecha, hora, cliente, teléfono, dirección, descripción y monto.</div>' +
+        '<div class="modal-actions">' +
+          '<button class="btn btn-ghost" id="m-cancel">Cancelar</button>' +
+          '<button class="btn btn-primary" id="m-save">'+(isEdit?'Guardar cambios':'Agendar')+'</button>' +
+        '</div>' +
+      '</div>';
+    openModal(html);
+
+    document.getElementById('m-close').onclick = closeModal;
+    document.getElementById('m-cancel').onclick = closeModal;
+    setupTechCombo();
+    document.getElementById('f-address-maps').onclick = function(){
+      var q = document.getElementById('f-address').value.trim();
+      if(!q) return;
+      window.open(mapsUrl(q), '_blank', 'noopener');
+    };
+
+    var nameInput = document.getElementById('f-client');
+    nameInput.addEventListener('change', function(){
+      var match = Array.from(state.clients.values()).find(function(c){ return (c.name||'').toLowerCase()===nameInput.value.trim().toLowerCase(); });
+      if(match){
+        var phoneEl = document.getElementById('f-phone'), addrEl = document.getElementById('f-address');
+        if(!phoneEl.value) phoneEl.value = match.phone||'';
+        if(!addrEl.value) addrEl.value = match.address||'';
+      }
+    });
+
+    document.getElementById('m-save').onclick = async function(){
+      var payload = {
+        date: document.getElementById('f-date').value,
+        time: document.getElementById('f-time').value,
+        clientName: document.getElementById('f-client').value.trim(),
+        phone: document.getElementById('f-phone').value.trim(),
+        address: document.getElementById('f-address').value.trim(),
+        description: document.getElementById('f-desc').value.trim(),
+        quoteNumber: document.getElementById('f-quote').value.trim(),
+        amount: document.getElementById('f-amount').value,
+        technician: document.getElementById('f-tech').value.trim(),
+        paymentStatus: document.getElementById('f-status').value,
+        notes: document.getElementById('f-notes').value.trim()
+      };
+      var required = ['date','time','clientName','phone','address','description','amount'];
+      var missing = required.some(function(k){ return !payload[k] && payload[k]!==0; });
+      if(missing){ document.getElementById('f-error').classList.add('show'); return; }
+      if(!state.db){ document.getElementById('f-error').textContent = 'Sin conexión a la base de datos.'; document.getElementById('f-error').classList.add('show'); return; }
+
+      var btn = document.getElementById('m-save');
+      btn.disabled = true; btn.textContent = 'Guardando…';
+      try{
+        await saveAppointment(payload, isEdit ? existing.id : null);
+        state.selectedDate = payload.date;
+        closeModal();
+      }catch(err){
+        console.error(err);
+        document.getElementById('f-error').textContent = 'No se pudo guardar. Intenta de nuevo.';
+        document.getElementById('f-error').classList.add('show');
+        btn.disabled = false; btn.textContent = isEdit?'Guardar cambios':'Agendar';
+      }
+    };
+  }
+  document.getElementById('btn-new').onclick = function(){ openAppointmentForm(null); };
+
+  /* ---------------- invoice (per service) ---------------- */
+  function setupInvoice(id, s){
+    var box = document.getElementById('m-invoice');
+    var invoiced = !!s.invoiced, number = s.invoiceNumber || '', mode = s.ivaMode === 'neto' ? 'neto' : 'incluido';
+    var invDate = s.invoiceDate || '';
+    var timer = null, dirty = false;
+
+    async function save(){
+      clearTimeout(timer); timer = null;
+      if(!dirty) return;
+      dirty = false;
+      if(!state.db || !state.services.has(id)) return;
+      try{
+        await state.db.collection('services').doc(id).update({
+          invoiced: invoiced, invoiceNumber: invoiced ? number.trim() : '', ivaMode: mode,
+          invoiceDate: invoiced ? invDate : ''
+        });
+      }catch(err){
+        console.error(err);
+        dirty = true;
+        alert('No se pudo guardar la factura. Revisa tu conexión e intenta de nuevo.');
+      }
+    }
+    modalCloseHooks.push(save);
+
+    box.innerHTML = '<div class="inv-box">' +
+      '<div class="inv-head">Factura</div>' +
+      '<label class="inv-check"><input type="checkbox" id="inv-yes"'+(invoiced?' checked':'')+'> Se generó factura</label>' +
+      '<div id="inv-more"'+(invoiced?'':' hidden')+' style="display:flex; flex-direction:column; gap:10px;">' +
+        '<input type="text" class="inv-num" id="inv-num" placeholder="N° de factura (ej: 1234)" maxlength="40" value="'+escapeHtml(number)+'">' +
+        '<label class="exp-meta" style="display:flex; flex-direction:column; gap:4px; font-size:11.5px; color:var(--ink-faint);">Fecha de factura (define el mes del IVA)' +
+          '<input type="date" class="inv-num" id="inv-date" value="'+escapeHtml(invDate)+'"></label>' +
+        '<select class="inv-num" id="inv-mode">' +
+          '<option value="incluido"'+(mode==='incluido'?' selected':'')+'>El monto del servicio ya incluye IVA ('+IVA_PCT+'%)</option>' +
+          '<option value="neto"'+(mode==='neto'?' selected':'')+'>El monto es neto: se suma IVA ('+IVA_PCT+'%)</option>' +
+        '</select>' +
+        '<div class="inv-calc" id="inv-calc"></div>' +
+      '</div>' +
+    '</div>';
+    var yes = document.getElementById('inv-yes'), num = document.getElementById('inv-num');
+    var more = document.getElementById('inv-more'), sel = document.getElementById('inv-mode'), dateEl = document.getElementById('inv-date');
+    function paintCalc(){
+      var c = ivaOf({ invoiced: true, amount: s.amount, ivaMode: mode });
+      document.getElementById('inv-calc').innerHTML =
+        '<span>Neto <b class="mono">'+formatCLP(c.net)+'</b></span>' +
+        '<span>IVA ('+IVA_PCT+'%) <b class="mono">'+formatCLP(c.iva)+'</b></span>' +
+        '<span>Total <b class="mono">'+formatCLP(c.total)+'</b></span>';
+    }
+    paintCalc();
+    yes.addEventListener('change', function(){
+      invoiced = yes.checked;
+      more.hidden = !invoiced;
+      if(invoiced && !invDate){ invDate = isoFromDate(new Date()); dateEl.value = invDate; }
+      if(invoiced) num.focus();
+      dirty = true;
+      save();
+    });
+    num.addEventListener('input', function(){
+      number = num.value;
+      dirty = true;
+      clearTimeout(timer);
+      timer = setTimeout(save, 400);
+    });
+    num.addEventListener('change', save);
+    dateEl.addEventListener('change', function(){ invDate = dateEl.value; dirty = true; save(); });
+    sel.addEventListener('change', function(){
+      mode = sel.value;
+      paintCalc();
+      dirty = true;
+      save();
+    });
+  }
+
+  /* ---------------- expenses (per service) ---------------- */
+  // Cada gasto: descripción, cantidad, precio unitario NETO, fecha de compra y si lleva IVA (19%).
+  // El IVA de compra se resta del IVA de venta en el cuadre mensual.
+  function newExpId(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,5); }
+
+  function setupExpenses(id, s){
+    var todayIso = isoFromDate(new Date());
+    var defaultDate = (s.date && s.date < todayIso) ? s.date : todayIso;
+    var exps = (Array.isArray(s.expenses) ? s.expenses : []).map(function(e){
+      var hasQP = e.qty != null || e.price != null;
+      return {
+        id: e.id || newExpId(),
+        desc: e.desc || '',
+        qty: hasQP ? (Number(e.qty)||0) : 1,
+        price: hasQP ? (Number(e.price)||0) : (Number(e.amount)||0),
+        iva: e.iva === true,
+        date: e.date || s.date || defaultDate
+      };
+    });
+    var box = document.getElementById('m-expenses');
+    var timer = null, dirty = false;
+
+    function parts(e){ return expParts({ qty: e.qty, price: e.price, iva: e.iva }); }
+    function totals(){
+      return exps.reduce(function(a,e){ var p = parts(e); a.net += p.net; a.iva += p.iva; a.gross += p.gross; return a; }, { net:0, iva:0, gross:0 });
+    }
+    function payload(){
+      return exps.filter(function(e){ return e.desc.trim() || parts(e).net > 0; }).map(function(e){
+        return { id:e.id, desc:e.desc.trim(), qty:Number(e.qty)||0, price:Number(e.price)||0, iva:!!e.iva, date:e.date || defaultDate, amount:parts(e).net };
+      });
+    }
+    async function save(){
+      clearTimeout(timer); timer = null;
+      if(!dirty) return;
+      dirty = false;
+      if(!state.db || !state.services.has(id)) return;
+      try{
+        await state.db.collection('services').doc(id).update({ expenses: payload() });
+      }catch(err){
+        console.error(err);
+        dirty = true;
+        alert('No se pudieron guardar los gastos. Revisa tu conexión e intenta de nuevo.');
+      }
+    }
+    function scheduleSave(){ dirty = true; clearTimeout(timer); timer = setTimeout(save, 400); }
+    modalCloseHooks.push(save);
+
+    function refreshTotals(){
+      var t = totals(), net = (Number(s.amount)||0) - t.gross;
+      document.getElementById('exp-tnet').textContent = formatCLP(t.net);
+      document.getElementById('exp-tiva').textContent = formatCLP(t.iva);
+      document.getElementById('exp-total').textContent = formatCLP(t.gross);
+      var n = document.getElementById('exp-net');
+      n.textContent = formatNet(net);
+      n.className = 'mono ' + (net<0 ? 'neg' : 'pos');
+    }
+    function rowHtml(e, i){
+      var p = parts(e);
+      return '<div class="exp-item" data-i="'+i+'">' +
+        '<div class="exp-item-top"><span>Gasto '+(i+1)+'</span><button type="button" class="exp-x" title="Quitar gasto">✕ quitar</button></div>' +
+        '<input type="text" class="e-desc" placeholder="Descripción (ej: materiales, bencina)" value="'+escapeHtml(e.desc)+'">' +
+        '<div class="exp-cols">' +
+          '<label>Cantidad<input type="number" class="e-qty" min="0" step="any" value="'+e.qty+'"></label>' +
+          '<label>Precio unitario NETO (CLP)<input type="number" class="e-price" min="0" step="1" value="'+e.price+'"></label>' +
+          '<div class="exp-sub">Subtotal neto<b class="mono">'+formatCLP(p.net)+'</b></div>' +
+        '</div>' +
+        '<div class="exp-meta">' +
+          '<label>Fecha de compra<input type="date" class="e-date" value="'+escapeHtml(e.date)+'"></label>' +
+          '<label class="exp-ivachk"><input type="checkbox" class="e-iva"'+(e.iva?' checked':'')+'> Con IVA ('+IVA_PCT+'%)</label>' +
+          '<span class="exp-ivaamt">IVA <b class="mono e-ivaamt">'+formatCLP(p.iva)+'</b></span>' +
+        '</div>' +
+      '</div>';
+    }
+    function paint(focusLast){
+      box.innerHTML = '<div class="exp-box">' +
+        '<div class="exp-head"><span>Gastos del servicio</span></div>' +
+        (exps.length ? exps.map(rowHtml).join('') : '<div class="exp-empty">Aún no hay gastos. Agrega el primero abajo.</div>') +
+        '<button type="button" class="exp-addbtn" id="exp-add">+ Agregar gasto</button>' +
+        '<div class="exp-net"><span>Total neto</span><span class="mono" id="exp-tnet"></span></div>' +
+        '<div class="exp-net"><span>IVA compras ('+IVA_PCT+'%)</span><span class="mono" id="exp-tiva"></span></div>' +
+        '<div class="exp-net"><span>Total pagado (neto + IVA)</span><span class="mono" id="exp-total"></span></div>' +
+        '<div class="exp-net"><span>Queda (monto − total pagado)</span><span id="exp-net"></span></div>' +
+      '</div>';
+      box.querySelectorAll('.exp-item').forEach(function(row){
+        var i = Number(row.getAttribute('data-i'));
+        var d = row.querySelector('.e-desc'), q = row.querySelector('.e-qty'), p = row.querySelector('.e-price');
+        var dt = row.querySelector('.e-date'), iv = row.querySelector('.e-iva');
+        var subEl = row.querySelector('.exp-sub b'), ivaAmt = row.querySelector('.e-ivaamt');
+        function onInput(){
+          exps[i].desc = d.value;
+          exps[i].qty = Number(q.value) || 0;
+          exps[i].price = Number(p.value) || 0;
+          exps[i].iva = iv.checked;
+          exps[i].date = dt.value || defaultDate;
+          var pp = parts(exps[i]);
+          subEl.textContent = formatCLP(pp.net);
+          ivaAmt.textContent = formatCLP(pp.iva);
+          refreshTotals();
+          scheduleSave();
+        }
+        [d, q, p].forEach(function(el){
+          el.addEventListener('input', onInput);
+          el.addEventListener('change', function(){ save(); });
+        });
+        [dt, iv].forEach(function(el){
+          el.addEventListener('change', function(){ onInput(); save(); });
+        });
+        row.querySelector('.exp-x').onclick = function(){
+          exps.splice(i, 1);
+          dirty = true;
+          paint();
+          save();
+        };
+      });
+      document.getElementById('exp-add').onclick = function(){
+        exps.push({ id: newExpId(), desc: '', qty: 1, price: 0, iva: true, date: defaultDate });
+        paint(true);
+      };
+      refreshTotals();
+      if(focusLast){
+        var inputs = box.querySelectorAll('.e-desc');
+        if(inputs.length) inputs[inputs.length-1].focus();
+      }
+    }
+    paint();
+  }
+
+  /* ---------------- detail modal ---------------- */
+  function openDetail(id){
+    var s = state.services.get(id);
+    if(!s) return;
+    var d = dateFromISO(s.date);
+    var dateLabel = WEEKDAYS[d.getDay()] + ' ' + d.getDate() + ' ' + MONTHS[d.getMonth()] + ', ' + s.time;
+
+    var html =
+      '<div class="modal-head"><h2>Detalle del servicio</h2><button class="icon-btn" id="m-close">✕</button></div>' +
+      '<div class="modal-body">' +
+        (s.trackingCode ? '<div style="font-family:var(--font-mono); font-size:12.5px; color:var(--ink-faint);">N° de seguimiento <strong style="color:var(--ink); font-size:15px; letter-spacing:.03em;">'+escapeHtml(s.trackingCode)+'</strong></div>' : '') +
+        '<div class="detail-top">' +
+          '<span style="display:flex; gap:6px;">' +
+            '<span class="status-pill '+(s.paymentStatus==='pagado'?'pagado':'pendiente')+'">'+(s.paymentStatus==='pagado'?'Pagado':'Pendiente')+'</span>' +
+            '<span class="status-pill '+(s.completed?'realizado':'porhacer')+'">'+(s.completed?'Realizado':'Por realizar')+'</span>' +
+            '<span class="status-pill '+(s.invoiced?'facturado':'sinfactura')+'">'+(s.invoiced?('Factura '+escapeHtml(s.invoiceNumber||'emitida')):'Sin factura')+'</span>' +
+          '</span>' +
+        '</div>' +
+        '<div class="button-row">' +
+          '<button class="btn btn-ghost btn-sm" id="m-toggle-done">Marcar como '+(s.completed?'no realizado':'realizado')+'</button>' +
+          '<button class="btn btn-soft btn-sm" id="m-toggle-status">Marcar como '+(s.paymentStatus==='pagado'?'pendiente':'pagado')+'</button>' +
+        '</div>' +
+        '<div class="wa-actions">'+waTechButton(s,'btn-wa')+waClientButton(s,'btn-wa')+'</div>' +
+        '<div class="detail-row"><div class="detail-icon">🗓️</div><div class="detail-text"><div class="l">Fecha y hora</div><div class="v">'+escapeHtml(dateLabel)+'</div></div></div>' +
+        '<div class="detail-row"><div class="detail-icon">👤</div><div class="detail-text"><div class="l">Cliente</div><div class="v">'+escapeHtml(s.clientName)+'</div></div></div>' +
+        '<div class="detail-row"><div class="detail-icon">📞</div><div class="detail-text"><div class="l">Teléfono</div><div class="v mono"><a href="tel:'+escapeHtml(s.phone)+'">'+escapeHtml(s.phone)+'</a></div></div></div>' +
+        '<div class="detail-row"><div class="detail-icon">📍</div><div class="detail-text"><div class="l">Dirección</div><div class="v"><a href="'+mapsUrl(s.address)+'" target="_blank" rel="noopener">'+escapeHtml(s.address)+' ↗</a></div></div></div>' +
+        '<div class="detail-row"><div class="detail-icon">📝</div><div class="detail-text"><div class="l">Descripción</div><div class="v">'+escapeHtml(s.description)+'</div></div></div>' +
+        (s.quoteNumber ? '<div class="detail-row"><div class="detail-icon">#</div><div class="detail-text"><div class="l">N° de cotización</div><div class="v mono">'+escapeHtml(s.quoteNumber)+' <button class="btn btn-ghost btn-sm" id="m-open-quote" style="margin-left:8px;">Ver cotización</button></div></div></div>' : '') +
+        '<div class="detail-row"><div class="detail-icon">💰</div><div class="detail-text"><div class="l">Monto</div><div class="v mono">'+formatCLP(s.amount)+'</div></div></div>' +
+        (s.technician ? '<div class="detail-row"><div class="detail-icon">🔧</div><div class="detail-text"><div class="l">Técnico asignado</div><div class="v">'+escapeHtml(s.technician)+'</div></div></div>' : '') +
+        (s.notes ? '<div class="detail-row"><div class="detail-icon">🗒️</div><div class="detail-text"><div class="l">Notas</div><div class="v">'+escapeHtml(s.notes)+'</div></div></div>' : '') +
+        '<div id="m-invoice"></div>' +
+        '<div id="m-expenses"></div>' +
+        '<div id="m-confirm-slot"></div>' +
+        '<div class="modal-actions">' +
+          '<button class="btn btn-danger" id="m-delete">Eliminar</button>' +
+          '<button class="btn btn-primary" id="m-edit">Editar</button>' +
+        '</div>' +
+      '</div>';
+    openModal(html);
+    document.getElementById('m-close').onclick = closeModal;
+    document.getElementById('m-edit').onclick = function(){ openAppointmentForm(Object.assign({id:id}, s)); };
+    setupInvoice(id, s);
+    setupExpenses(id, s);
+    var oq = document.getElementById('m-open-quote');
+    if(oq) oq.onclick = function(){ closeModal(); if(window.CVApp) window.CVApp.openQuote(s.quoteNumber); };
+    document.getElementById('m-toggle-status').onclick = async function(){
+      var next = s.paymentStatus==='pagado' ? 'pendiente' : 'pagado';
+      await setPaymentStatus(id, next);
+      closeModal();
+    };
+    document.getElementById('m-toggle-done').onclick = async function(){
+      await setCompleted(id, !s.completed);
+      closeModal();
+    };
+    document.getElementById('m-delete').onclick = function(){
+      document.getElementById('m-confirm-slot').innerHTML =
+        '<div class="confirm-box"><span>¿Eliminar esta cita? No se puede deshacer.</span>' +
+        '<span style="display:flex; gap:8px;"><button class="btn btn-ghost btn-sm" id="m-cancel-del">Cancelar</button><button class="btn btn-danger btn-sm" id="m-confirm-del">Eliminar</button></span></div>';
+      document.getElementById('m-cancel-del').onclick = function(){ document.getElementById('m-confirm-slot').innerHTML=''; };
+      document.getElementById('m-confirm-del').onclick = async function(){
+        await deleteAppointment(id);
+        closeModal();
+      };
+    };
+  }
+
+  /* ---------------- render all ---------------- */
+  function renderAll(){
+    renderMinical();
+    renderSideSummary();
+    renderAgendaView();
+    if(state.activeTab==='clientes') renderClientsTab();
+    if(state.activeTab==='tecnicos') renderTechniciansTab();
+    if(state.activeTab==='pagos'){ populatePayTechOptions(); renderPagosTab(); }
+    if(state.activeTab==='finanzas') renderFinanzasTab();
+  }
+
+  /* ---------------- one-time import from the old standalone agenda ---------------- */
+  var OLD_AGENDA_CONFIG = {
+    apiKey: "AIzaSyDirBCZnTssd_BdrGYFEpqtGWxXg0_2dv8",
+    authDomain: "cerravolt-agenda.firebaseapp.com",
+    projectId: "cerravolt-agenda",
+    storageBucket: "cerravolt-agenda.firebasestorage.app",
+    messagingSenderId: "731310217309",
+    appId: "1:731310217309:web:99e7d72fba05fb9bd155b4"
+  };
+
+  async function runImport(email, pass, log){
+    var oldApp = null;
+    try{
+      oldApp = firebase.initializeApp(OLD_AGENDA_CONFIG, 'agendaOld-' + Date.now());
+      log('Conectando con la agenda antigua…');
+      await firebase.auth(oldApp).signInWithEmailAndPassword(email, pass);
+      var oldDb = firebase.firestore(oldApp);
+      var names = ['clients', 'technicians', 'services'];
+      for(var n = 0; n < names.length; n++){
+        var name = names[n];
+        var oldSnap = await oldDb.collection(name).get();
+        var existing = await state.db.collection(name).get();
+        var have = new Set(existing.docs.map(function(d){ return d.id; }));
+        var toWrite = oldSnap.docs.filter(function(d){ return !have.has(d.id); });
+        for(var i = 0; i < toWrite.length; i += 400){
+          var batch = state.db.firestore.batch();
+          toWrite.slice(i, i + 400).forEach(function(d){ batch.set(state.db.collection(name).doc(d.id), d.data()); });
+          await batch.commit();
+        }
+        log('• ' + name + ': ' + toWrite.length + ' importados (' + (oldSnap.size - toWrite.length) + ' ya existían)');
+      }
+      try{
+        var oc = await oldDb.collection('meta').doc('counters').get();
+        var nc = await state.db.collection('meta').doc('counters').get();
+        var oldSeq = oc.exists ? (Number(oc.data().serviceSeq) || 0) : 0;
+        var newSeq = nc.exists ? (Number(nc.data().serviceSeq) || 0) : 0;
+        if(oldSeq > newSeq) await state.db.collection('meta').doc('counters').set({ serviceSeq: oldSeq }, { merge: true });
+        log('• contador de seguimiento: CV' + String(Math.max(oldSeq, newSeq)).padStart(4, '0'));
+      }catch(e){ log('• (no se pudo leer el contador: ' + (e.code || e.message) + ')'); }
+      log('Listo. Ya puedes cerrar esta ventana.');
+    } finally {
+      if(oldApp){
+        try{ await firebase.auth(oldApp).signOut(); }catch(e){}
+        try{ await oldApp.delete(); }catch(e){}
+      }
+    }
+  }
+
+  function openImportModal(){
+    openModal(
+      '<div class="modal-head"><h2>Importar datos de la agenda anterior</h2><button class="icon-btn" id="m-close">✕</button></div>' +
+      '<div class="modal-body">' +
+        '<p style="font-size:13px; color:var(--ink-soft); line-height:1.55;">Copia citas, clientes y técnicos desde la agenda antigua (proyecto <b>cerravolt-agenda</b>) a esta base de datos. No borra nada del origen ni pisa registros que ya existan aquí. Ingresa el correo y la contraseña con que entrabas a la agenda antigua.</p>' +
+        '<div class="field"><label>Correo (agenda antigua)</label><input type="email" id="imp-email" autocomplete="off"></div>' +
+        '<div class="field"><label>Contraseña (agenda antigua)</label><input type="password" id="imp-pass" autocomplete="off"></div>' +
+        '<div class="form-error" id="imp-error"></div>' +
+        '<div class="wa-hint" id="imp-log" style="white-space:pre-line;" hidden></div>' +
+        '<div class="modal-actions"><button class="btn btn-ghost" id="imp-cancel">Cerrar</button><button class="btn btn-primary" id="imp-run">Importar</button></div>' +
+      '</div>');
+    document.getElementById('m-close').onclick = closeModal;
+    document.getElementById('imp-cancel').onclick = closeModal;
+    document.getElementById('imp-run').onclick = async function(){
+      var email = document.getElementById('imp-email').value.trim();
+      var pass = document.getElementById('imp-pass').value;
+      var errEl = document.getElementById('imp-error');
+      var logEl = document.getElementById('imp-log');
+      errEl.classList.remove('show');
+      if(!email || !pass){ errEl.textContent = 'Completa correo y contraseña.'; errEl.classList.add('show'); return; }
+      if(!state.db){ errEl.textContent = 'Sin conexión a la base de datos.'; errEl.classList.add('show'); return; }
+      var btn = document.getElementById('imp-run');
+      btn.disabled = true; btn.textContent = 'Importando…';
+      logEl.hidden = false; logEl.textContent = '';
+      try{
+        await runImport(email, pass, function(line){ logEl.textContent += (logEl.textContent ? '\n' : '') + line; });
+      }catch(err){
+        console.error('import error', err);
+        errEl.textContent = 'No se pudo importar (' + (err.code || err.message) + ').';
+        errEl.classList.add('show');
+      }
+      btn.disabled = false; btn.textContent = 'Importar de nuevo';
+    };
+  }
+  document.getElementById('btn-import').onclick = openImportModal;
+  document.getElementById('btn-back').onclick = function(){ if(window.CVApp) window.CVApp.show('cotizador'); };
+
+  function resetState(){
+    state.services = new Map(); state.clients = new Map(); state.technicians = new Map();
+    state.activeClientId = null; state.activeTechId = null;
+  }
+  window.CVAgenda = {
+    start: function(userDocRef){
+      if(state.dbReady && state.db === userDocRef) return;
+      unsubs.forEach(function(u){ try{ u(); }catch(e){} }); unsubs = [];
+      state.db = userDocRef; state.dbReady = true;
+      subscribeAll(state.db);
+    },
+    stop: function(){
+      unsubs.forEach(function(u){ try{ u(); }catch(e){} }); unsubs = [];
+      state.db = null; state.dbReady = false;
+      resetState(); renderAll();
+    },
+    openNew: function(prefill){ openAppointmentForm(null, prefill); },
+    render: renderAll,
+    openModal: openModal,
+    closeModal: closeModal,
+    getClients: function(){ return Array.from(state.clients.values()); }
+  };
+  renderAll();
+
+})();
 </script>
 
 </body>
