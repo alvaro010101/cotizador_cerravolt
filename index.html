@@ -2208,13 +2208,22 @@ Garantía de 6 meses sobre mano de obra e instalación. No cubre daños por mal 
       });
     }catch(e){
       console.error('Error leyendo Firestore:', e);
-      document.getElementById('storageWarning').style.display = 'block';
+      indexLoadFailed = true;
+      const warn = document.getElementById('storageWarning');
+      warn.textContent = '⚠️ No se pudo leer la base de datos (' + (e.code || e.message || 'error desconocido') + '). Si dice permission-denied, revisa las reglas de Firestore del proyecto cotizador-cerravolt.';
+      warn.style.display = 'block';
       return [];
     }
   }
 
+  let indexLoadFailed = false;
+
+  // Devuelve '' si no pudo leer las cotizaciones guardadas: asignar "0001" a ciegas
+  // podría sobrescribir una cotización existente.
   async function nextQuoteNumber(){
+    indexLoadFailed = false;
     const idx = await getIndex();
+    if(indexLoadFailed) return '';
     let max = 0;
     idx.forEach(it => { const n = parseInt(it.num,10); if(!isNaN(n) && n>max) max=n; });
     return String(max+1).padStart(4,'0');
@@ -2280,6 +2289,10 @@ Garantía de 6 meses sobre mano de obra e instalación. No cubre daños por mal 
     let num = document.getElementById('qNum').value.trim();
     if(!num){
       num = await nextQuoteNumber();
+      if(!num){
+        alert('No se pudo leer tus cotizaciones guardadas para asignar el número, así que no se guardó (para no sobrescribir una existente). Revisa el aviso amarillo de arriba a la izquierda.');
+        return;
+      }
       document.getElementById('qNum').value = num;
       update();
     }
