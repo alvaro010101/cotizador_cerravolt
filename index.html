@@ -604,6 +604,8 @@
   #agendaRoot .status-pill.pendiente{ background:var(--amber-soft); color:var(--amber-ink); }
   #agendaRoot .status-pill.pagado{ background:var(--green-soft); color:var(--green-ink); }
   #agendaRoot .status-pill.realizado{ background:var(--accent-soft); color:var(--accent-strong); }
+  #agendaRoot .status-pill.facturado{ background:var(--green-soft); color:var(--green-ink); }
+  #agendaRoot .status-pill.sinfactura{ background:var(--surface-2); color:var(--ink-faint); border:1px solid var(--border); }
   #agendaRoot .status-pill.porhacer{ background:var(--surface-2); color:var(--ink-faint); border:1px solid var(--border); }
   #agendaRoot .button-row{ display:flex; gap:8px; flex-wrap:wrap; }
   #agendaRoot .button-row .btn{ flex:1; white-space:nowrap; }
@@ -852,6 +854,11 @@
   #agendaRoot .exp-addbtn{ width:100%; padding:9px; border-radius:var(--radius-sm); border:1px dashed var(--border); background:none; color:var(--accent-strong); font:inherit; font-size:13px; cursor:pointer; }
   #agendaRoot .exp-addbtn:hover{ background:var(--accent-soft); }
   #agendaRoot .card-exp{ font-size:11.5px; color:var(--ink-faint); }
+  #agendaRoot .inv-box{ border:1px solid var(--border); border-radius:var(--radius-md); padding:12px; display:flex; flex-direction:column; gap:10px; background:var(--surface-2); }
+  #agendaRoot .inv-head{ font-weight:600; font-size:13px; }
+  #agendaRoot .inv-check{ display:flex; align-items:center; gap:8px; font-size:13.5px; cursor:pointer; }
+  #agendaRoot .inv-check input{ width:16px; height:16px; accent-color:var(--accent); }
+  #agendaRoot .inv-num{ border:1px solid var(--border); background:var(--surface); color:var(--ink); border-radius:var(--radius-sm); padding:8px 10px; font:inherit; font-size:13px; width:100%; }
   #agendaRoot .fin-row{ cursor:pointer; }
   #agendaRoot .fin-row:hover td{ background:var(--accent-soft); }
   #agendaRoot .fin-exp{ font-size:11.5px; color:var(--ink-faint); margin-top:2px; }
@@ -1258,6 +1265,8 @@ cerravolt@gmail.com</textarea>
           <button data-filter="done">Realizados</button>
           <button data-filter="paid">Cobrados</button>
           <button data-filter="unpaid">Por cobrar</button>
+          <button data-filter="invoiced">Con factura</button>
+          <button data-filter="uninvoiced">Sin factura</button>
         </div>
       </div>
       <div class="agenda-list" id="agenda-list">
@@ -1324,6 +1333,8 @@ cerravolt@gmail.com</textarea>
             <option value="done">Solo realizados</option>
             <option value="paid">Solo cobrados</option>
             <option value="unpaid">Solo por cobrar</option>
+            <option value="invoiced">Solo con factura</option>
+            <option value="uninvoiced">Solo sin factura</option>
           </select></div>
         </div>
         <div class="pagos-results" id="fin-results"></div>
@@ -2828,6 +2839,8 @@ cerravolt@gmail.com`;
     if(f==='done') return !!v.completed;
     if(f==='paid') return v.paymentStatus==='pagado';
     if(f==='unpaid') return v.paymentStatus!=='pagado';
+    if(f==='invoiced') return !!v.invoiced;
+    if(f==='uninvoiced') return !v.invoiced;
     return true;
   }
   function expensesTotal(v){
@@ -3058,6 +3071,7 @@ cerravolt@gmail.com`;
       '<div class="service-right">' +
         '<span class="amount">'+formatCLP(s.amount)+'</span>' +
         (expensesTotal(s)>0 ? '<span class="card-exp">Gastos '+formatCLP(expensesTotal(s))+'</span>' : '') +
+        (s.invoiced ? '<span class="card-exp">🧾 Factura '+escapeHtml(s.invoiceNumber||'emitida')+'</span>' : '') +
         '<span class="status-pill '+(s.paymentStatus==='pagado'?'pagado':'pendiente')+'">'+(s.paymentStatus==='pagado'?'Pagado':'Pendiente')+'</span>' +
         '<div class="wa-row">'+waTechButton(s,'wa-btn')+waClientButton(s,'wa-btn')+'</div>' +
       '</div>' +
@@ -3496,10 +3510,11 @@ cerravolt@gmail.com`;
       box.innerHTML = '<div class="empty-state"><div class="glyph">🧾</div><div class="msg">No hay servicios para este mes y filtro.</div></div>';
       return;
     }
-    var billed=0, spent=0, paid=0, pending=0;
+    var billed=0, spent=0, paid=0, pending=0, uninvoicedAmt=0;
     items.forEach(function(s){
       var a = Number(s.amount)||0;
       billed += a; spent += expensesTotal(s);
+      if(!s.invoiced) uninvoicedAmt += a;
       if(s.paymentStatus==='pagado') paid += a; else pending += a;
     });
     var net = billed - spent;
@@ -3510,8 +3525,9 @@ cerravolt@gmail.com`;
         '<div class="pay-stat"><div class="l">Queda (facturado − gastos)</div><div class="v '+(net<0?'neg':'pos')+'">'+formatNet(net)+'</div></div>' +
         '<div class="pay-stat"><div class="l">Cobrado</div><div class="v">'+formatCLP(paid)+'</div></div>' +
         '<div class="pay-stat"><div class="l">Por cobrar</div><div class="v">'+formatCLP(pending)+'</div></div>' +
+        '<div class="pay-stat"><div class="l">Sin factura</div><div class="v">'+formatCLP(uninvoicedAmt)+'</div></div>' +
       '</div>' +
-      '<div class="pay-table-wrap"><table class="pay-table"><thead><tr><th>Fecha</th><th>Cliente / servicio</th><th>Monto</th><th>Gastos</th><th>Queda</th></tr></thead><tbody>' +
+      '<div class="pay-table-wrap"><table class="pay-table"><thead><tr><th>Fecha</th><th>Cliente / servicio</th><th>Factura</th><th>Monto</th><th>Gastos</th><th>Queda</th></tr></thead><tbody>' +
       items.map(function(s){
         var d = dateFromISO(s.date);
         var exps = Array.isArray(s.expenses) ? s.expenses : [];
@@ -3521,10 +3537,11 @@ cerravolt@gmail.com`;
             '<div class="fin-exp">'+escapeHtml(s.description||'')+'</div>' +
             (exps.length ? '<div class="fin-exp">Gastos: '+exps.map(function(e){ return escapeHtml(e.desc)+' '+formatCLP(e.amount); }).join(' · ')+'</div>' : '') +
           '</td>' +
+          '<td class="mono">'+(s.invoiced ? escapeHtml(s.invoiceNumber||'Sí') : '—')+'</td>' +
           '<td class="mono">'+formatCLP(s.amount)+'</td><td class="mono">'+formatCLP(expensesTotal(s))+'</td>' +
           '<td class="mono" style="color:'+(rowNet<0?'var(--danger)':'var(--green-ink)')+'">'+formatNet(rowNet)+'</td></tr>';
       }).join('') +
-      '</tbody><tfoot><tr><td></td><td><b>Total del mes</b></td><td class="mono"><b>'+formatCLP(billed)+'</b></td><td class="mono"><b>'+formatCLP(spent)+'</b></td><td class="mono"><b>'+formatNet(net)+'</b></td></tr></tfoot></table></div>' +
+      '</tbody><tfoot><tr><td></td><td><b>Total del mes</b></td><td></td><td class="mono"><b>'+formatCLP(billed)+'</b></td><td class="mono"><b>'+formatCLP(spent)+'</b></td><td class="mono"><b>'+formatNet(net)+'</b></td></tr></tfoot></table></div>' +
       '<button class="btn btn-ghost btn-sm" id="btn-export-fin">⬇ CSV</button>' +
       '<div class="wa-hint" id="fin-hint" hidden></div>' +
     '</div>';
@@ -3532,14 +3549,15 @@ cerravolt@gmail.com`;
       tr.addEventListener('click', function(){ openDetail(tr.getAttribute('data-id')); });
     });
     document.getElementById('btn-export-fin').onclick = function(){
-      var rows = [['N° de seguimiento','Fecha','Cliente','Descripción','Monto','Gastos','Queda','Estado de cobro','Realizado','Detalle de gastos']];
+      var rows = [['N° de seguimiento','Fecha','Cliente','Descripción','Monto','Gastos','Queda','Estado de cobro','Realizado','Factura emitida','N° de factura','Detalle de gastos']];
       items.forEach(function(s){
         var exps = Array.isArray(s.expenses) ? s.expenses : [];
         rows.push([s.trackingCode||'', s.date, s.clientName||'', s.description||'', Number(s.amount)||0, expensesTotal(s),
           (Number(s.amount)||0) - expensesTotal(s), s.paymentStatus==='pagado'?'Pagado':'Pendiente', s.completed?'Sí':'No',
+          s.invoiced?'Sí':'No', s.invoiceNumber||'',
           exps.map(function(e){ return e.desc+': '+e.amount; }).join(' | ')]);
       });
-      rows.push(['','','','Total del mes', billed, spent, net, '', '', '']);
+      rows.push(['','','','Total del mes', billed, spent, net, '', '', '', '', '']);
       saveCsv('finanzas-cerravolt-'+prefix+'.csv', rowsToCsv(rows), document.getElementById('btn-export-fin'), document.getElementById('fin-hint'));
     };
   }
@@ -3810,8 +3828,8 @@ cerravolt@gmail.com`;
   /* ---------------- modal helpers ---------------- */
   var overlay = document.getElementById('overlay');
   var modal = document.getElementById('modal');
-  var modalCloseHook = null;
-  function runModalHook(){ var h = modalCloseHook; modalCloseHook = null; if(h) h(); }
+  var modalCloseHooks = [];
+  function runModalHook(){ var hs = modalCloseHooks; modalCloseHooks = []; hs.forEach(function(h){ h(); }); }
   function openModal(html){
     runModalHook();
     modal.innerHTML = html;
@@ -3921,6 +3939,49 @@ cerravolt@gmail.com`;
   }
   document.getElementById('btn-new').onclick = function(){ openAppointmentForm(null); };
 
+  /* ---------------- invoice (per service) ---------------- */
+  function setupInvoice(id, s){
+    var box = document.getElementById('m-invoice');
+    var invoiced = !!s.invoiced, number = s.invoiceNumber || '';
+    var timer = null, dirty = false;
+
+    async function save(){
+      clearTimeout(timer); timer = null;
+      if(!dirty) return;
+      dirty = false;
+      if(!state.db || !state.services.has(id)) return;
+      try{
+        await state.db.collection('services').doc(id).update({ invoiced: invoiced, invoiceNumber: invoiced ? number.trim() : '' });
+      }catch(err){
+        console.error(err);
+        dirty = true;
+        alert('No se pudo guardar la factura. Revisa tu conexión e intenta de nuevo.');
+      }
+    }
+    modalCloseHooks.push(save);
+
+    box.innerHTML = '<div class="inv-box">' +
+      '<div class="inv-head">Factura</div>' +
+      '<label class="inv-check"><input type="checkbox" id="inv-yes"'+(invoiced?' checked':'')+'> Se generó factura</label>' +
+      '<input type="text" class="inv-num" id="inv-num" placeholder="N° de factura (ej: 1234)" maxlength="40" value="'+escapeHtml(number)+'"'+(invoiced?'':' hidden')+'>' +
+    '</div>';
+    var yes = document.getElementById('inv-yes'), num = document.getElementById('inv-num');
+    yes.addEventListener('change', function(){
+      invoiced = yes.checked;
+      num.hidden = !invoiced;
+      if(invoiced) num.focus();
+      dirty = true;
+      save();
+    });
+    num.addEventListener('input', function(){
+      number = num.value;
+      dirty = true;
+      clearTimeout(timer);
+      timer = setTimeout(save, 400);
+    });
+    num.addEventListener('change', save);
+  }
+
   /* ---------------- expenses (per service) ---------------- */
   // Gastos como líneas editables igual que los ítems de la cotización:
   // descripción, cantidad y precio unitario; el total se suma al final.
@@ -3960,7 +4021,7 @@ cerravolt@gmail.com`;
       }
     }
     function scheduleSave(){ dirty = true; clearTimeout(timer); timer = setTimeout(save, 400); }
-    modalCloseHook = save;
+    modalCloseHooks.push(save);
 
     function refreshTotals(){
       var t = total(), net = (Number(s.amount)||0) - t;
@@ -4039,6 +4100,7 @@ cerravolt@gmail.com`;
           '<span style="display:flex; gap:6px;">' +
             '<span class="status-pill '+(s.paymentStatus==='pagado'?'pagado':'pendiente')+'">'+(s.paymentStatus==='pagado'?'Pagado':'Pendiente')+'</span>' +
             '<span class="status-pill '+(s.completed?'realizado':'porhacer')+'">'+(s.completed?'Realizado':'Por realizar')+'</span>' +
+            '<span class="status-pill '+(s.invoiced?'facturado':'sinfactura')+'">'+(s.invoiced?('Factura '+escapeHtml(s.invoiceNumber||'emitida')):'Sin factura')+'</span>' +
           '</span>' +
         '</div>' +
         '<div class="button-row">' +
@@ -4055,6 +4117,7 @@ cerravolt@gmail.com`;
         '<div class="detail-row"><div class="detail-icon">💰</div><div class="detail-text"><div class="l">Monto</div><div class="v mono">'+formatCLP(s.amount)+'</div></div></div>' +
         (s.technician ? '<div class="detail-row"><div class="detail-icon">🔧</div><div class="detail-text"><div class="l">Técnico asignado</div><div class="v">'+escapeHtml(s.technician)+'</div></div></div>' : '') +
         (s.notes ? '<div class="detail-row"><div class="detail-icon">🗒️</div><div class="detail-text"><div class="l">Notas</div><div class="v">'+escapeHtml(s.notes)+'</div></div></div>' : '') +
+        '<div id="m-invoice"></div>' +
         '<div id="m-expenses"></div>' +
         '<div id="m-confirm-slot"></div>' +
         '<div class="modal-actions">' +
@@ -4065,6 +4128,7 @@ cerravolt@gmail.com`;
     openModal(html);
     document.getElementById('m-close').onclick = closeModal;
     document.getElementById('m-edit').onclick = function(){ openAppointmentForm(Object.assign({id:id}, s)); };
+    setupInvoice(id, s);
     setupExpenses(id, s);
     var oq = document.getElementById('m-open-quote');
     if(oq) oq.onclick = function(){ closeModal(); if(window.CVApp) window.CVApp.openQuote(s.quoteNumber); };
