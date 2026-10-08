@@ -822,6 +822,27 @@
   .app-switch button.active{background:linear-gradient(135deg, var(--blue-500), var(--blue-700)); color:#fff;}
   body.mode-agenda .cot-only{display:none !important;}
   @media print{ #agendaRoot, .app-switch{display:none !important;} }
+  #agendaRoot .filter-bar{ display:flex; align-items:center; gap:10px; margin:0 0 14px; flex-wrap:wrap; }
+  #agendaRoot .filter-label{ font-size:11.5px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.08em; }
+  #agendaRoot .side-summary-row .v.red{ color:var(--danger); }
+  #agendaRoot .side-summary-row .v.neg{ color:var(--danger); }
+  #agendaRoot .exp-box{ border:1px solid var(--border); border-radius:var(--radius-md); padding:12px; display:flex; flex-direction:column; gap:8px; background:var(--surface-2); }
+  #agendaRoot .exp-head, #agendaRoot .exp-net{ display:flex; justify-content:space-between; font-weight:600; font-size:13px; }
+  #agendaRoot .exp-net{ border-top:1px dashed var(--border); padding-top:8px; }
+  #agendaRoot .exp-net .pos{ color:var(--green-ink); }
+  #agendaRoot .exp-net .neg{ color:var(--danger); }
+  #agendaRoot .exp-row{ display:flex; align-items:center; gap:8px; font-size:13px; padding:4px 0; border-bottom:1px solid var(--border-soft); }
+  #agendaRoot .exp-row span:first-child{ flex:1; }
+  #agendaRoot .exp-x{ border:none; background:none; color:var(--ink-faint); cursor:pointer; font-size:13px; padding:2px 6px; border-radius:6px; }
+  #agendaRoot .exp-x:hover{ color:var(--danger); background:var(--danger-soft); }
+  #agendaRoot .exp-empty{ font-size:12.5px; color:var(--ink-faint); }
+  #agendaRoot .exp-add{ display:grid; grid-template-columns:1fr 110px auto; gap:6px; }
+  #agendaRoot .exp-add input{ border:1px solid var(--border); background:var(--surface); color:var(--ink); border-radius:var(--radius-sm); padding:8px 10px; font:inherit; font-size:13px; min-width:0; }
+  #agendaRoot .fin-row{ cursor:pointer; }
+  #agendaRoot .fin-row:hover td{ background:var(--accent-soft); }
+  #agendaRoot .fin-exp{ font-size:11.5px; color:var(--ink-faint); margin-top:2px; }
+  #agendaRoot .pay-stat .v.neg{ color:var(--danger); }
+  #agendaRoot .pay-stat .v.pos{ color:var(--green-ink); }
 </style>
 </head>
 <body>
@@ -1156,6 +1177,8 @@ cerravolt@gmail.com</textarea>
       <div class="side-summary-row"><span>Servicios agendados</span><span class="v" id="sum-count">–</span></div>
       <div class="side-summary-row"><span>Por cobrar</span><span class="v amber" id="sum-pending">–</span></div>
       <div class="side-summary-row"><span>Cobrado</span><span class="v green" id="sum-paid">–</span></div>
+      <div class="side-summary-row"><span>Gastos</span><span class="v red" id="sum-expenses">–</span></div>
+      <div class="side-summary-row"><span>Queda (monto − gastos)</span><span class="v" id="sum-net">–</span></div>
     </div>
 
     <div class="banner" id="db-banner"></div>
@@ -1172,6 +1195,7 @@ cerravolt@gmail.com</textarea>
       <button class="tab" data-tab="clientes" id="tab-clientes">Clientes <span class="count" id="clients-count"></span></button>
       <button class="tab" data-tab="tecnicos" id="tab-tecnicos">Técnicos <span class="count" id="techs-count"></span></button>
       <button class="tab" data-tab="pagos" id="tab-pagos">Pagos</button>
+      <button class="tab" data-tab="finanzas" id="tab-finanzas">Finanzas</button>
     </nav>
 
     <section id="view-agenda">
@@ -1189,6 +1213,15 @@ cerravolt@gmail.com</textarea>
             <button data-view="week">Semana</button>
             <button data-view="month">Mes</button>
           </div>
+        </div>
+      </div>
+      <div class="filter-bar">
+        <span class="filter-label">Mostrar</span>
+        <div class="view-switch" id="status-filter">
+          <button data-filter="all" class="active">Todos</button>
+          <button data-filter="done">Realizados</button>
+          <button data-filter="paid">Cobrados</button>
+          <button data-filter="unpaid">Por cobrar</button>
         </div>
       </div>
       <div class="agenda-list" id="agenda-list">
@@ -1243,6 +1276,21 @@ cerravolt@gmail.com</textarea>
           <label class="pay-check"><input type="checkbox" id="pay-only-paid"> Solo servicios cobrados</label>
         </div>
         <div class="pagos-results" id="pagos-results"></div>
+      </div>
+    </section>
+
+    <section id="view-finanzas" hidden>
+      <div class="pagos-wrap">
+        <div class="pagos-filters">
+          <div class="field"><label>Mes</label><input type="month" id="fin-month"></div>
+          <div class="field"><label>Mostrar</label><select id="fin-filter">
+            <option value="all">Todos los servicios</option>
+            <option value="done">Solo realizados</option>
+            <option value="paid">Solo cobrados</option>
+            <option value="unpaid">Solo por cobrar</option>
+          </select></div>
+        </div>
+        <div class="pagos-results" id="fin-results"></div>
       </div>
     </section>
   </main>
@@ -2463,6 +2511,7 @@ cerravolt@gmail.com`;
     activeClientId: null,
     activeTechId: null,
     view: 'day',
+    filter: 'all',
     dbReady: false,
     db: null
   };
@@ -2600,9 +2649,21 @@ cerravolt@gmail.com`;
   }
 
   /* ---------------- derived data ---------------- */
+  // Filtro por estado: all | done (realizados) | paid (cobrados) | unpaid (por cobrar)
+  function statusMatches(v, f){
+    if(f==='done') return !!v.completed;
+    if(f==='paid') return v.paymentStatus==='pagado';
+    if(f==='unpaid') return v.paymentStatus!=='pagado';
+    return true;
+  }
+  function expensesTotal(v){
+    return (Array.isArray(v.expenses) ? v.expenses : []).reduce(function(a,e){ return a + (Number(e.amount)||0); }, 0);
+  }
+  function formatNet(n){ return (n<0?'-':'') + formatCLP(Math.abs(n)); }
+
   function servicesForDate(iso){
     var out = [];
-    state.services.forEach(function(v,id){ if(v.date===iso) out.push(Object.assign({id:id}, v)); });
+    state.services.forEach(function(v,id){ if(v.date===iso && statusMatches(v, state.filter)) out.push(Object.assign({id:id}, v)); });
     out.sort(function(a,b){ return (a.time||'').localeCompare(b.time||''); });
     return out;
   }
@@ -2616,7 +2677,7 @@ cerravolt@gmail.com`;
   function daysWithServiceInMonth(y,m){
     var set = new Set();
     var prefix = monthKey(y,m);
-    state.services.forEach(function(v){ if((v.date||'').slice(0,7)===prefix) set.add(v.date); });
+    state.services.forEach(function(v){ if((v.date||'').slice(0,7)===prefix && statusMatches(v, state.filter)) set.add(v.date); });
     return set;
   }
   function servicesForTechnician(name){
@@ -2629,7 +2690,7 @@ cerravolt@gmail.com`;
   function servicesInRange(fromIso, toIso){
     var out = [];
     state.services.forEach(function(v,id){
-      if(v.date < fromIso || v.date > toIso) return;
+      if(v.date < fromIso || v.date > toIso || !statusMatches(v, state.filter)) return;
       out.push(Object.assign({id:id}, v));
     });
     out.sort(function(a,b){ return (a.date+a.time).localeCompare(b.date+b.time); });
@@ -2770,13 +2831,19 @@ cerravolt@gmail.com`;
   /* ---------------- render: side summary ---------------- */
   function renderSideSummary(){
     var prefix = monthKey(state.calYear, state.calMonth);
-    var count=0, pending=0, paid=0;
+    var count=0, pending=0, paid=0, spent=0;
     state.services.forEach(function(v){
       if((v.date||'').slice(0,7)!==prefix) return;
       count++;
       if(v.paymentStatus==='pagado') paid += Number(v.amount)||0;
       else pending += Number(v.amount)||0;
+      spent += expensesTotal(v);
     });
+    var net = paid + pending - spent;
+    document.getElementById('sum-expenses').textContent = formatCLP(spent);
+    var netEl = document.getElementById('sum-net');
+    netEl.textContent = formatNet(net);
+    netEl.className = 'v ' + (net<0 ? 'neg' : 'green');
     document.getElementById('sum-count').textContent = count;
     document.getElementById('sum-pending').textContent = formatCLP(pending);
     document.getElementById('sum-paid').textContent = formatCLP(paid);
@@ -2857,7 +2924,7 @@ cerravolt@gmail.com`;
     var list = document.getElementById('agenda-list');
     var items = servicesForDate(state.selectedDate);
     if(items.length===0){
-      list.innerHTML = '<div class="empty-state"><div class="glyph">📅</div><div class="msg">No hay servicios agendados este día.</div>' +
+      list.innerHTML = '<div class="empty-state"><div class="glyph">📅</div><div class="msg">'+(state.filter==='all' ? 'No hay servicios agendados este día.' : 'No hay servicios con este filtro este día.')+'</div>' +
         '<button class="btn btn-soft btn-sm" id="empty-new">+ Agendar servicio</button></div>';
       var btn = document.getElementById('empty-new');
       if(btn) btn.onclick = function(){ openAppointmentForm(null); };
@@ -3229,6 +3296,82 @@ cerravolt@gmail.com`;
     });
   }
 
+  /* ---------------- status filter (agenda) ---------------- */
+  document.getElementById('status-filter').addEventListener('click', function(e){
+    var btn = e.target.closest('button[data-filter]');
+    if(!btn) return;
+    state.filter = btn.getAttribute('data-filter');
+    document.querySelectorAll('#status-filter button').forEach(function(b){ b.classList.toggle('active', b===btn); });
+    renderAll();
+  });
+
+  /* ---------------- finanzas: gastos del mes por servicio ---------------- */
+  function renderFinanzasTab(){
+    var monthEl = document.getElementById('fin-month');
+    if(!monthEl.value) monthEl.value = state.calYear + '-' + pad2(state.calMonth+1);
+    var prefix = monthEl.value;
+    var f = document.getElementById('fin-filter').value;
+    var box = document.getElementById('fin-results');
+    var items = [];
+    state.services.forEach(function(v,id){
+      if((v.date||'').slice(0,7)===prefix && statusMatches(v,f)) items.push(Object.assign({id:id}, v));
+    });
+    items.sort(function(a,b){ return (a.date+a.time).localeCompare(b.date+b.time); });
+    if(items.length===0){
+      box.innerHTML = '<div class="empty-state"><div class="glyph">🧾</div><div class="msg">No hay servicios para este mes y filtro.</div></div>';
+      return;
+    }
+    var billed=0, spent=0, paid=0, pending=0;
+    items.forEach(function(s){
+      var a = Number(s.amount)||0;
+      billed += a; spent += expensesTotal(s);
+      if(s.paymentStatus==='pagado') paid += a; else pending += a;
+    });
+    var net = billed - spent;
+    box.innerHTML = '<div class="pay-summary">' +
+      '<div class="pay-stat-grid">' +
+        '<div class="pay-stat"><div class="l">Facturado</div><div class="v">'+formatCLP(billed)+'</div></div>' +
+        '<div class="pay-stat"><div class="l">Gastos</div><div class="v">'+formatCLP(spent)+'</div></div>' +
+        '<div class="pay-stat"><div class="l">Queda (facturado − gastos)</div><div class="v '+(net<0?'neg':'pos')+'">'+formatNet(net)+'</div></div>' +
+        '<div class="pay-stat"><div class="l">Cobrado</div><div class="v">'+formatCLP(paid)+'</div></div>' +
+        '<div class="pay-stat"><div class="l">Por cobrar</div><div class="v">'+formatCLP(pending)+'</div></div>' +
+      '</div>' +
+      '<div class="pay-table-wrap"><table class="pay-table"><thead><tr><th>Fecha</th><th>Cliente / servicio</th><th>Monto</th><th>Gastos</th><th>Queda</th></tr></thead><tbody>' +
+      items.map(function(s){
+        var d = dateFromISO(s.date);
+        var exps = Array.isArray(s.expenses) ? s.expenses : [];
+        var rowNet = (Number(s.amount)||0) - expensesTotal(s);
+        return '<tr class="fin-row" data-id="'+s.id+'"><td>'+d.getDate()+' '+MONTHS[d.getMonth()].slice(0,3)+'</td>' +
+          '<td>'+escapeHtml(s.clientName||'')+(s.trackingCode?' <span class="mono" style="color:var(--ink-faint)">'+escapeHtml(s.trackingCode)+'</span>':'')+
+            '<div class="fin-exp">'+escapeHtml(s.description||'')+'</div>' +
+            (exps.length ? '<div class="fin-exp">Gastos: '+exps.map(function(e){ return escapeHtml(e.desc)+' '+formatCLP(e.amount); }).join(' · ')+'</div>' : '') +
+          '</td>' +
+          '<td class="mono">'+formatCLP(s.amount)+'</td><td class="mono">'+formatCLP(expensesTotal(s))+'</td>' +
+          '<td class="mono" style="color:'+(rowNet<0?'var(--danger)':'var(--green-ink)')+'">'+formatNet(rowNet)+'</td></tr>';
+      }).join('') +
+      '</tbody><tfoot><tr><td></td><td><b>Total del mes</b></td><td class="mono"><b>'+formatCLP(billed)+'</b></td><td class="mono"><b>'+formatCLP(spent)+'</b></td><td class="mono"><b>'+formatNet(net)+'</b></td></tr></tfoot></table></div>' +
+      '<button class="btn btn-ghost btn-sm" id="btn-export-fin">⬇ CSV</button>' +
+      '<div class="wa-hint" id="fin-hint" hidden></div>' +
+    '</div>';
+    box.querySelectorAll('.fin-row').forEach(function(tr){
+      tr.addEventListener('click', function(){ openDetail(tr.getAttribute('data-id')); });
+    });
+    document.getElementById('btn-export-fin').onclick = function(){
+      var rows = [['N° de seguimiento','Fecha','Cliente','Descripción','Monto','Gastos','Queda','Estado de cobro','Realizado','Detalle de gastos']];
+      items.forEach(function(s){
+        var exps = Array.isArray(s.expenses) ? s.expenses : [];
+        rows.push([s.trackingCode||'', s.date, s.clientName||'', s.description||'', Number(s.amount)||0, expensesTotal(s),
+          (Number(s.amount)||0) - expensesTotal(s), s.paymentStatus==='pagado'?'Pagado':'Pendiente', s.completed?'Sí':'No',
+          exps.map(function(e){ return e.desc+': '+e.amount; }).join(' | ')]);
+      });
+      rows.push(['','','','Total del mes', billed, spent, net, '', '', '']);
+      saveCsv('finanzas-cerravolt-'+prefix+'.csv', rowsToCsv(rows), document.getElementById('btn-export-fin'), document.getElementById('fin-hint'));
+    };
+  }
+  ['fin-month','fin-filter'].forEach(function(id){
+    document.getElementById(id).addEventListener('change', renderFinanzasTab);
+  });
+
   /* ---------------- tabs ---------------- */
   function switchTab(tab){
     state.activeTab = tab;
@@ -3236,15 +3379,18 @@ cerravolt@gmail.com`;
     document.getElementById('tab-clientes').classList.toggle('active', tab==='clientes');
     document.getElementById('tab-tecnicos').classList.toggle('active', tab==='tecnicos');
     document.getElementById('tab-pagos').classList.toggle('active', tab==='pagos');
+    document.getElementById('tab-finanzas').classList.toggle('active', tab==='finanzas');
     document.getElementById('view-agenda').hidden = tab!=='agenda';
     document.getElementById('view-clientes').hidden = tab!=='clientes';
     document.getElementById('view-tecnicos').hidden = tab!=='tecnicos';
     document.getElementById('view-pagos').hidden = tab!=='pagos';
+    document.getElementById('view-finanzas').hidden = tab!=='finanzas';
   }
   document.getElementById('tab-agenda').onclick = function(){ switchTab('agenda'); };
   document.getElementById('tab-clientes').onclick = function(){ switchTab('clientes'); renderClientsTab(); };
   document.getElementById('tab-tecnicos').onclick = function(){ switchTab('tecnicos'); renderTechniciansTab(); };
   document.getElementById('tab-pagos').onclick = function(){ switchTab('pagos'); populatePayTechOptions(); renderPagosTab(); };
+  document.getElementById('tab-finanzas').onclick = function(){ switchTab('finanzas'); renderFinanzasTab(); };
   document.getElementById('client-search').oninput = function(){ renderClientsTab(); };
 
   /* ---------------- CSV helpers (shared) ---------------- */
@@ -3597,6 +3743,50 @@ cerravolt@gmail.com`;
   }
   document.getElementById('btn-new').onclick = function(){ openAppointmentForm(null); };
 
+  /* ---------------- expenses (per service) ---------------- */
+  function setupExpenses(id, s){
+    var exps = Array.isArray(s.expenses) ? s.expenses.slice() : [];
+    var box = document.getElementById('m-expenses');
+    async function persist(previous){
+      try{
+        await state.db.collection('services').doc(id).update({ expenses: exps });
+      }catch(err){
+        console.error(err);
+        exps = previous;
+        alert('No se pudo guardar el gasto. Intenta de nuevo.');
+      }
+      paint();
+    }
+    function paint(){
+      var total = expensesTotal({ expenses: exps });
+      var net = (Number(s.amount)||0) - total;
+      box.innerHTML = '<div class="exp-box">' +
+        '<div class="exp-head"><span>Gastos del servicio</span><span class="mono">'+formatCLP(total)+'</span></div>' +
+        (exps.length ? exps.map(function(e,i){
+          return '<div class="exp-row"><span>'+escapeHtml(e.desc)+'</span><span class="mono">'+formatCLP(e.amount)+'</span><button type="button" class="exp-x" data-i="'+i+'" title="Quitar gasto">✕</button></div>';
+        }).join('') : '<div class="exp-empty">Sin gastos registrados.</div>') +
+        '<div class="exp-add"><input type="text" id="exp-desc" placeholder="Ej: Materiales, bencina…"><input type="number" id="exp-amount" min="0" step="1" placeholder="Monto"><button type="button" class="btn btn-soft btn-sm" id="exp-add">Agregar</button></div>' +
+        '<div class="exp-net"><span>Queda (monto − gastos)</span><span class="mono '+(net<0?'neg':'pos')+'">'+formatNet(net)+'</span></div>' +
+      '</div>';
+      box.querySelectorAll('.exp-x').forEach(function(btn){
+        btn.onclick = function(){
+          var previous = exps.slice();
+          exps.splice(Number(btn.getAttribute('data-i')), 1);
+          persist(previous);
+        };
+      });
+      document.getElementById('exp-add').onclick = function(){
+        var desc = document.getElementById('exp-desc').value.trim();
+        var amount = Number(document.getElementById('exp-amount').value);
+        if(!desc || !(amount > 0)){ document.getElementById(desc ? 'exp-amount' : 'exp-desc').focus(); return; }
+        var previous = exps.slice();
+        exps.push({ id: Date.now().toString(36), desc: desc, amount: amount });
+        persist(previous);
+      };
+    }
+    paint();
+  }
+
   /* ---------------- detail modal ---------------- */
   function openDetail(id){
     var s = state.services.get(id);
@@ -3628,6 +3818,7 @@ cerravolt@gmail.com`;
         '<div class="detail-row"><div class="detail-icon">💰</div><div class="detail-text"><div class="l">Monto</div><div class="v mono">'+formatCLP(s.amount)+'</div></div></div>' +
         (s.technician ? '<div class="detail-row"><div class="detail-icon">🔧</div><div class="detail-text"><div class="l">Técnico asignado</div><div class="v">'+escapeHtml(s.technician)+'</div></div></div>' : '') +
         (s.notes ? '<div class="detail-row"><div class="detail-icon">🗒️</div><div class="detail-text"><div class="l">Notas</div><div class="v">'+escapeHtml(s.notes)+'</div></div></div>' : '') +
+        '<div id="m-expenses"></div>' +
         '<div id="m-confirm-slot"></div>' +
         '<div class="modal-actions">' +
           '<button class="btn btn-danger" id="m-delete">Eliminar</button>' +
@@ -3637,6 +3828,7 @@ cerravolt@gmail.com`;
     openModal(html);
     document.getElementById('m-close').onclick = closeModal;
     document.getElementById('m-edit').onclick = function(){ openAppointmentForm(Object.assign({id:id}, s)); };
+    setupExpenses(id, s);
     var oq = document.getElementById('m-open-quote');
     if(oq) oq.onclick = function(){ closeModal(); if(window.CVApp) window.CVApp.openQuote(s.quoteNumber); };
     document.getElementById('m-toggle-status').onclick = async function(){
@@ -3668,6 +3860,7 @@ cerravolt@gmail.com`;
     if(state.activeTab==='clientes') renderClientsTab();
     if(state.activeTab==='tecnicos') renderTechniciansTab();
     if(state.activeTab==='pagos'){ populatePayTechOptions(); renderPagosTab(); }
+    if(state.activeTab==='finanzas') renderFinanzasTab();
   }
 
   /* ---------------- one-time import from the old standalone agenda ---------------- */
