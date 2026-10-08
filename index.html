@@ -968,28 +968,44 @@
         Marca las condiciones que apliquen. Se mostrarán con viñeta (•) en el documento.
       </p>
 
-      <label class="checkbox-field" style="margin-bottom:10px; align-items:flex-start;">
-        <input type="checkbox" id="qCondValida" style="margin-top:3px;">
-        <span>Cotización válida por el plazo indicado desde la fecha de emisión</span>
-      </label>
-      <label class="checkbox-field" style="margin-bottom:10px; align-items:flex-start;">
-        <input type="checkbox" id="qCondGarantia" style="margin-top:3px;">
-        <span>Garantía de 3 meses sobre mano de obra e instalación. No cubre daños por mal uso, golpes, manipulación de terceros o problemas estructurales</span>
-      </label>
-      <label class="checkbox-field" style="margin-bottom:10px; align-items:flex-start;">
-        <input type="checkbox" id="qCondNoVisita" style="margin-top:3px;">
-        <span>Cotización realizada sin visita técnica (pueden surgir ítems adicionales en terreno)</span>
-      </label>
-      <label class="checkbox-field" style="margin-bottom:10px; align-items:flex-start;">
-        <input type="checkbox" id="qCond50" style="margin-top:3px;">
-        <span>Se considera aceptada con abono del 50% del total</span>
-      </label>
-      <label class="checkbox-field" style="margin-bottom:14px; align-items:flex-start;">
-        <input type="checkbox" id="qCondSEC" style="margin-top:3px;">
-        <span>Trabajos eléctricos realizados conforme a normativa SEC</span>
-      </label>
+      <div class="cond-row" data-builtin="qCondValida">
+        <label class="checkbox-field" style="margin-bottom:0; align-items:flex-start;">
+          <input type="checkbox" id="qCondValida" style="margin-top:3px;">
+          <span>Cotización válida por el plazo indicado desde la fecha de emisión</span>
+        </label>
+        <button type="button" class="remove-btn" title="Quitar de la lista" onclick="hideBuiltinCondition('qCondValida')">✕</button>
+      </div>
+      <div class="cond-row" data-builtin="qCondGarantia">
+        <label class="checkbox-field" style="margin-bottom:0; align-items:flex-start;">
+          <input type="checkbox" id="qCondGarantia" style="margin-top:3px;">
+          <span>Garantía de 3 meses sobre mano de obra e instalación. No cubre daños por mal uso, golpes, manipulación de terceros o problemas estructurales</span>
+        </label>
+        <button type="button" class="remove-btn" title="Quitar de la lista" onclick="hideBuiltinCondition('qCondGarantia')">✕</button>
+      </div>
+      <div class="cond-row" data-builtin="qCondNoVisita">
+        <label class="checkbox-field" style="margin-bottom:0; align-items:flex-start;">
+          <input type="checkbox" id="qCondNoVisita" style="margin-top:3px;">
+          <span>Cotización realizada sin visita técnica (pueden surgir ítems adicionales en terreno)</span>
+        </label>
+        <button type="button" class="remove-btn" title="Quitar de la lista" onclick="hideBuiltinCondition('qCondNoVisita')">✕</button>
+      </div>
+      <div class="cond-row" data-builtin="qCond50">
+        <label class="checkbox-field" style="margin-bottom:0; align-items:flex-start;">
+          <input type="checkbox" id="qCond50" style="margin-top:3px;">
+          <span>Se considera aceptada con abono del 50% del total</span>
+        </label>
+        <button type="button" class="remove-btn" title="Quitar de la lista" onclick="hideBuiltinCondition('qCond50')">✕</button>
+      </div>
+      <div class="cond-row" data-builtin="qCondSEC">
+        <label class="checkbox-field" style="margin-bottom:0; align-items:flex-start;">
+          <input type="checkbox" id="qCondSEC" style="margin-top:3px;">
+          <span>Trabajos eléctricos realizados conforme a normativa SEC</span>
+        </label>
+        <button type="button" class="remove-btn" title="Quitar de la lista" onclick="hideBuiltinCondition('qCondSEC')">✕</button>
+      </div>
 
       <div id="customConds"></div>
+      <div id="restoreConds" style="display:none; margin:-2px 0 12px;"><button type="button" class="remove-btn" style="color:var(--blue-400); font-size:12px;" onclick="restoreBuiltinConditions()">↺ Restaurar condiciones predeterminadas</button></div>
       <div class="cond-add">
         <input id="newCondText" type="text" placeholder="Nueva condición (ej: Anticipo no reembolsable)" maxlength="300">
         <button type="button" class="add-btn" onclick="addCustomCondition()">+ Agregar condición a la lista</button>
@@ -1469,6 +1485,8 @@ cerravolt@gmail.com</textarea>
   function userCondsRef(){
     return db.collection('users').doc(currentUser.uid).collection('conditions');
   }
+  const BUILTIN_CONDS = ['qCondValida', 'qCondGarantia', 'qCondNoVisita', 'qCond50', 'qCondSEC'];
+  let hiddenBuiltins = new Set();  // condiciones predeterminadas que el usuario quitó de la lista
   let customConds = [];          // catálogo: { id, text, createdAt }
   let customSel = new Map();     // marcadas en esta cotización: id -> text
 
@@ -1479,7 +1497,56 @@ cerravolt@gmail.com</textarea>
     return list;
   }
 
+  function userCondSettingsRef(){
+    return db.collection('users').doc(currentUser.uid).collection('settings').doc('conditions');
+  }
+
+  // Una condición predeterminada quitada se oculta, salvo que la cotización abierta la tenga marcada.
+  function applyBuiltinVisibility(){
+    let anyHidden = false;
+    BUILTIN_CONDS.forEach(id => {
+      const row = document.querySelector('[data-builtin="' + id + '"]');
+      const hide = hiddenBuiltins.has(id) && !document.getElementById(id).checked;
+      row.style.display = hide ? 'none' : '';
+      if(hiddenBuiltins.has(id)) anyHidden = true;
+    });
+    document.getElementById('restoreConds').style.display = anyHidden ? 'block' : 'none';
+  }
+
+  async function saveHiddenBuiltins(){
+    try{
+      await userCondSettingsRef().set({ hidden: Array.from(hiddenBuiltins) });
+      return true;
+    }catch(e){
+      console.error('Error guardando condiciones ocultas:', e);
+      alert('No se pudo guardar el cambio: ' + (e.message || e));
+      return false;
+    }
+  }
+
+  async function hideBuiltinCondition(id){
+    if(!confirm('¿Quitar esta condición de la lista? Puedes restaurarla después.')) return;
+    document.getElementById(id).checked = false;
+    hiddenBuiltins.add(id);
+    applyBuiltinVisibility();
+    update();
+    await saveHiddenBuiltins();
+  }
+
+  async function restoreBuiltinConditions(){
+    hiddenBuiltins = new Set();
+    applyBuiltinVisibility();
+    await saveHiddenBuiltins();
+  }
+
   async function refreshCustomConds(){
+    try{
+      const st = await userCondSettingsRef().get();
+      hiddenBuiltins = new Set((st.exists && st.data().hidden) || []);
+    }catch(e){
+      console.error('Error leyendo condiciones ocultas:', e);
+    }
+    applyBuiltinVisibility();
     try{
       const snap = await userCondsRef().get();
       customConds = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
@@ -2315,6 +2382,7 @@ cerravolt@gmail.com</textarea>
     document.getElementById('qCondSEC').checked = !!s.notes?.condSEC;
     customSel = new Map((s.notes?.customSelected || []).map(c => [c.id, c.text]));
     renderCustomConds();
+    applyBuiltinVisibility();
     document.getElementById('qBankShow').checked = !!s.bankShow;
     document.getElementById('qBank').value = s.bank || '';
     images = s.images || [];
@@ -2535,6 +2603,7 @@ cerravolt@gmail.com</textarea>
     document.getElementById('qCondSEC').checked = false;
     customSel = new Map();
     renderCustomConds();
+    applyBuiltinVisibility();
     document.getElementById('qBankShow').checked = false;
     document.getElementById('qBank').value =
 `CERRAVOLT SPA
