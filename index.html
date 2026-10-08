@@ -154,6 +154,14 @@
   .field textarea{resize:vertical; min-height:90px; line-height:1.5;}
   .row2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
 
+  .cond-row{display:flex; align-items:flex-start; gap:6px; margin-bottom:10px;}
+  .cond-row .checkbox-field{flex:1; align-items:flex-start;}
+  .cond-add{display:flex; flex-direction:column; gap:8px; margin:4px 0 16px;}
+  .cond-add input{
+    width:100%; background:var(--panel-2); border:1px solid var(--line-strong);
+    border-radius:8px; padding:9px 11px; font-size:13px; color:var(--steel-100);
+  }
+  .cond-add input:focus{outline:none; border-color:var(--blue-500);}
   .rich-toolbar{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px;}
   .rt-btn{
     font-size:11.5px; padding:4px 10px; border-radius:6px; min-width:26px;
@@ -961,11 +969,11 @@
       </p>
 
       <label class="checkbox-field" style="margin-bottom:10px; align-items:flex-start;">
-        <input type="checkbox" id="qCondValida" style="margin-top:3px;" checked>
+        <input type="checkbox" id="qCondValida" style="margin-top:3px;">
         <span>Cotización válida por el plazo indicado desde la fecha de emisión</span>
       </label>
       <label class="checkbox-field" style="margin-bottom:10px; align-items:flex-start;">
-        <input type="checkbox" id="qCondGarantia" style="margin-top:3px;" checked>
+        <input type="checkbox" id="qCondGarantia" style="margin-top:3px;">
         <span>Garantía de 3 meses sobre mano de obra e instalación. No cubre daños por mal uso, golpes, manipulación de terceros o problemas estructurales</span>
       </label>
       <label class="checkbox-field" style="margin-bottom:10px; align-items:flex-start;">
@@ -977,9 +985,15 @@
         <span>Se considera aceptada con abono del 50% del total</span>
       </label>
       <label class="checkbox-field" style="margin-bottom:14px; align-items:flex-start;">
-        <input type="checkbox" id="qCondSEC" style="margin-top:3px;" checked>
-        <span>Trabajos eléctricos realizados conforme a normativa SEC (desmarca si este trabajo no incluye electricidad)</span>
+        <input type="checkbox" id="qCondSEC" style="margin-top:3px;">
+        <span>Trabajos eléctricos realizados conforme a normativa SEC</span>
       </label>
+
+      <div id="customConds"></div>
+      <div class="cond-add">
+        <input id="newCondText" type="text" placeholder="Nueva condición (ej: Anticipo no reembolsable)" maxlength="300">
+        <button type="button" class="add-btn" onclick="addCustomCondition()">+ Agregar condición a la lista</button>
+      </div>
 
       <p style="font-size:11.5px; color:var(--steel-500); line-height:1.6; margin:0 0 8px;">
         Condiciones adicionales — usa la barra para dar formato:
@@ -1448,6 +1462,88 @@ cerravolt@gmail.com</textarea>
       return false;
     }
   }
+
+  // ---------- Condiciones personalizadas (catálogo reutilizable) ----------
+  // Cada condición nueva queda guardada en la cuenta y aparece como casilla
+  // seleccionable en todas las cotizaciones; lo marcado se guarda con cada cotización.
+  function userCondsRef(){
+    return db.collection('users').doc(currentUser.uid).collection('conditions');
+  }
+  let customConds = [];          // catálogo: { id, text, createdAt }
+  let customSel = new Map();     // marcadas en esta cotización: id -> text
+
+  // Catálogo + condiciones marcadas en una cotización que ya no están en el catálogo
+  function customCondList(){
+    const list = customConds.slice();
+    customSel.forEach((text, id) => { if(!list.some(c => c.id === id)) list.push({ id, text }); });
+    return list;
+  }
+
+  async function refreshCustomConds(){
+    try{
+      const snap = await userCondsRef().get();
+      customConds = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
+      customConds.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+    }catch(e){
+      console.error('Error leyendo condiciones:', e);
+      customConds = [];
+    }
+    renderCustomConds();
+  }
+
+  function renderCustomConds(){
+    const wrap = document.getElementById('customConds');
+    wrap.innerHTML = customCondList().map(c => `
+      <div class="cond-row">
+        <label class="checkbox-field">
+          <input type="checkbox" style="margin-top:3px;" ${customSel.has(c.id) ? 'checked' : ''} onchange="toggleCustomCondition('${escapeAttr(c.id)}', this.checked)">
+          <span>${escapeHtml(c.text)}</span>
+        </label>
+        <button type="button" class="remove-btn" title="Quitar de la lista" onclick="removeCustomCondition('${escapeAttr(c.id)}')">✕</button>
+      </div>`).join('');
+  }
+
+  function toggleCustomCondition(id, checked){
+    const c = customCondList().find(x => x.id === id);
+    if(!c) return;
+    if(checked) customSel.set(id, c.text); else customSel.delete(id);
+    update();
+  }
+
+  async function addCustomCondition(){
+    const input = document.getElementById('newCondText');
+    const text = input.value.trim();
+    if(!text){ input.focus(); return; }
+    const id = 'c' + Date.now().toString(36);
+    try{
+      await userCondsRef().doc(id).set({ text, createdAt: Date.now() });
+      customConds.push({ id, text, createdAt: Date.now() });
+      customSel.set(id, text);
+      input.value = '';
+      renderCustomConds();
+      update();
+    }catch(e){
+      console.error('Error guardando condición:', e);
+      alert('No se pudo guardar la condición: ' + (e.message || e));
+    }
+  }
+
+  async function removeCustomCondition(id){
+    if(!confirm('¿Quitar esta condición de la lista? Las cotizaciones ya guardadas no cambian.')) return;
+    try{
+      await userCondsRef().doc(id).delete();
+      customConds = customConds.filter(c => c.id !== id);
+      customSel.delete(id);
+      renderCustomConds();
+      update();
+    }catch(e){
+      console.error('Error quitando condición:', e);
+      alert('No se pudo quitar la condición: ' + (e.message || e));
+    }
+  }
+  document.getElementById('newCondText').addEventListener('keydown', e => {
+    if(e.key === 'Enter'){ e.preventDefault(); addCustomCondition(); }
+  });
 
   // ---------- Cotizador / Agenda: una sola app, una sola base de datos ----------
   const CVApp = {
@@ -2001,6 +2097,7 @@ cerravolt@gmail.com</textarea>
       lines.push('Cotización se considera aceptada con el abono del 50% del total del servicio.');
     if(document.getElementById('qCondSEC').checked)
       lines.push('Trabajos eléctricos realizados conforme a normativa SEC.');
+    customCondList().forEach(c => { if(customSel.has(c.id)) lines.push(c.text); });
     // Condiciones fijas (marcadas por checkbox) con viñeta, seguidas del
     // contenido con formato libre del editor de condiciones adicionales.
     const fixedHtml = lines.map(l => `<div>• ${escapeHtml(l)}</div>`).join('');
@@ -2183,7 +2280,8 @@ cerravolt@gmail.com</textarea>
         condGarantia: document.getElementById('qCondGarantia').checked,
         condNoVisita: document.getElementById('qCondNoVisita').checked,
         cond50: document.getElementById('qCond50').checked,
-        condSEC: document.getElementById('qCondSEC').checked
+        condSEC: document.getElementById('qCondSEC').checked,
+        customSelected: Array.from(customSel, ([id, text]) => ({ id, text }))
       },
       bankShow: document.getElementById('qBankShow').checked,
       bank: document.getElementById('qBank').value,
@@ -2207,16 +2305,16 @@ cerravolt@gmail.com</textarea>
     document.getElementById('qServiceShow').checked = s.serviceShow !== false;
     items = (s.items && s.items.length) ? s.items : [{ desc:'', qty:1, price:0 }];
     document.getElementById('qIva').checked = !!s.iva;
-    const legacyText = s.notes?.text ||
-`Cotización válida por el plazo indicado desde la fecha de emisión.
-Garantía de 6 meses sobre mano de obra e instalación. No cubre daños por mal uso, golpes, manipulación de terceros o problemas estructurales.`;
+    const legacyText = s.notes?.text || '';
     const filteredLegacy = legacyText.split('\n').filter(l => !/normativa\s+SEC/i.test(l)).join('\n');
     document.getElementById('qNotes').innerHTML = /<[a-z][\s\S]*>/i.test(filteredLegacy) ? filteredLegacy : qnLinesToHtml(filteredLegacy);
-    document.getElementById('qCondValida').checked = s.notes?.condValida !== false;
-    document.getElementById('qCondGarantia').checked = s.notes?.condGarantia !== false;
+    document.getElementById('qCondValida').checked = !!s.notes?.condValida;
+    document.getElementById('qCondGarantia').checked = !!s.notes?.condGarantia;
     document.getElementById('qCondNoVisita').checked = !!s.notes?.condNoVisita;
     document.getElementById('qCond50').checked = !!s.notes?.cond50;
-    document.getElementById('qCondSEC').checked = s.notes?.condSEC !== false;
+    document.getElementById('qCondSEC').checked = !!s.notes?.condSEC;
+    customSel = new Map((s.notes?.customSelected || []).map(c => [c.id, c.text]));
+    renderCustomConds();
     document.getElementById('qBankShow').checked = !!s.bankShow;
     document.getElementById('qBank').value = s.bank || '';
     images = s.images || [];
@@ -2429,14 +2527,14 @@ Garantía de 6 meses sobre mano de obra e instalación. No cubre daños por mal 
     document.getElementById('qServiceShow').checked = true;
     items = [{ desc:'', qty:1, price:0 }];
     document.getElementById('qIva').checked = false;
-    document.getElementById('qNotes').innerHTML = qnLinesToHtml(
-`Cotización válida por el plazo indicado desde la fecha de emisión.
-Garantía de 6 meses sobre mano de obra e instalación. No cubre daños por mal uso, golpes, manipulación de terceros o problemas estructurales.`);
-    document.getElementById('qCondValida').checked = true;
-    document.getElementById('qCondGarantia').checked = true;
+    document.getElementById('qNotes').innerHTML = '';
+    document.getElementById('qCondValida').checked = false;
+    document.getElementById('qCondGarantia').checked = false;
     document.getElementById('qCondNoVisita').checked = false;
     document.getElementById('qCond50').checked = false;
-    document.getElementById('qCondSEC').checked = true;
+    document.getElementById('qCondSEC').checked = false;
+    customSel = new Map();
+    renderCustomConds();
     document.getElementById('qBankShow').checked = false;
     document.getElementById('qBank').value =
 `CERRAVOLT SPA
@@ -2493,6 +2591,7 @@ cerravolt@gmail.com`;
     await refreshSavedList();
     await refreshClientsList();
     await refreshGlassTypes();
+    await refreshCustomConds();
     if(!document.getElementById('qNum').value){
       document.getElementById('qNum').value = await nextQuoteNumber();
       update();
