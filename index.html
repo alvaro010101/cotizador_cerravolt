@@ -859,6 +859,9 @@
   #agendaRoot .inv-check{ display:flex; align-items:center; gap:8px; font-size:13.5px; cursor:pointer; }
   #agendaRoot .inv-check input{ width:16px; height:16px; accent-color:var(--accent); }
   #agendaRoot .inv-num{ border:1px solid var(--border); background:var(--surface); color:var(--ink); border-radius:var(--radius-sm); padding:8px 10px; font:inherit; font-size:13px; width:100%; }
+  #agendaRoot select.inv-num{ appearance:auto; }
+  #agendaRoot .inv-calc{ display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; font-size:12px; color:var(--ink-faint); padding-top:6px; border-top:1px dashed var(--border); }
+  #agendaRoot .inv-calc b{ color:var(--ink); font-size:13px; }
   #agendaRoot .fin-row{ cursor:pointer; }
   #agendaRoot .fin-row:hover td{ background:var(--accent-soft); }
   #agendaRoot .fin-exp{ font-size:11.5px; color:var(--ink-faint); margin-top:2px; }
@@ -1222,6 +1225,7 @@ cerravolt@gmail.com</textarea>
       <div class="side-summary-row"><span>Cobrado</span><span class="v green" id="sum-paid">–</span></div>
       <div class="side-summary-row"><span>Gastos</span><span class="v red" id="sum-expenses">–</span></div>
       <div class="side-summary-row"><span>Queda (monto − gastos)</span><span class="v" id="sum-net">–</span></div>
+      <div class="side-summary-row"><span>IVA a pagar (facturado)</span><span class="v amber" id="sum-iva">–</span></div>
     </div>
 
     <div class="banner" id="db-banner"></div>
@@ -2846,6 +2850,19 @@ cerravolt@gmail.com`;
   function expensesTotal(v){
     return (Array.isArray(v.expenses) ? v.expenses : []).reduce(function(a,e){ return a + (Number(e.amount)||0); }, 0);
   }
+  // IVA de un servicio facturado. ivaMode 'incluido' (por defecto): el monto ya trae IVA;
+  // 'neto': el monto es sin IVA y se le suma. Devuelve null si no tiene factura.
+  var IVA_PCT = 19;
+  function ivaOf(v){
+    if(!v.invoiced) return null;
+    var a = Number(v.amount)||0;
+    if(v.ivaMode==='neto'){
+      var iva = Math.round(a*IVA_PCT/100);
+      return { iva: iva, net: a, total: a + iva };
+    }
+    var iva2 = Math.round(a*IVA_PCT/(100+IVA_PCT));
+    return { iva: iva2, net: a - iva2, total: a };
+  }
   function formatNet(n){ return (n<0?'-':'') + formatCLP(Math.abs(n)); }
 
   function servicesForDate(iso){
@@ -3018,15 +3035,17 @@ cerravolt@gmail.com`;
   /* ---------------- render: side summary ---------------- */
   function renderSideSummary(){
     var prefix = monthKey(state.calYear, state.calMonth);
-    var count=0, pending=0, paid=0, spent=0;
+    var count=0, pending=0, paid=0, spent=0, ivaSum=0;
     state.services.forEach(function(v){
       if((v.date||'').slice(0,7)!==prefix) return;
       count++;
       if(v.paymentStatus==='pagado') paid += Number(v.amount)||0;
       else pending += Number(v.amount)||0;
       spent += expensesTotal(v);
+      var iv = ivaOf(v); if(iv) ivaSum += iv.iva;
     });
     var net = paid + pending - spent;
+    document.getElementById('sum-iva').textContent = formatCLP(ivaSum);
     document.getElementById('sum-expenses').textContent = formatCLP(spent);
     var netEl = document.getElementById('sum-net');
     netEl.textContent = formatNet(net);
@@ -3510,11 +3529,12 @@ cerravolt@gmail.com`;
       box.innerHTML = '<div class="empty-state"><div class="glyph">🧾</div><div class="msg">No hay servicios para este mes y filtro.</div></div>';
       return;
     }
-    var billed=0, spent=0, paid=0, pending=0, uninvoicedAmt=0;
+    var billed=0, spent=0, paid=0, pending=0, uninvoicedAmt=0, ivaTotal=0;
     items.forEach(function(s){
       var a = Number(s.amount)||0;
       billed += a; spent += expensesTotal(s);
       if(!s.invoiced) uninvoicedAmt += a;
+      var iv = ivaOf(s); if(iv) ivaTotal += iv.iva;
       if(s.paymentStatus==='pagado') paid += a; else pending += a;
     });
     var net = billed - spent;
@@ -3526,8 +3546,9 @@ cerravolt@gmail.com`;
         '<div class="pay-stat"><div class="l">Cobrado</div><div class="v">'+formatCLP(paid)+'</div></div>' +
         '<div class="pay-stat"><div class="l">Por cobrar</div><div class="v">'+formatCLP(pending)+'</div></div>' +
         '<div class="pay-stat"><div class="l">Sin factura</div><div class="v">'+formatCLP(uninvoicedAmt)+'</div></div>' +
+        '<div class="pay-stat"><div class="l">IVA a pagar (facturado)</div><div class="v">'+formatCLP(ivaTotal)+'</div></div>' +
       '</div>' +
-      '<div class="pay-table-wrap"><table class="pay-table"><thead><tr><th>Fecha</th><th>Cliente / servicio</th><th>Factura</th><th>Monto</th><th>Gastos</th><th>Queda</th></tr></thead><tbody>' +
+      '<div class="pay-table-wrap"><table class="pay-table"><thead><tr><th>Fecha</th><th>Cliente / servicio</th><th>Factura</th><th>Monto</th><th>IVA</th><th>Gastos</th><th>Queda</th></tr></thead><tbody>' +
       items.map(function(s){
         var d = dateFromISO(s.date);
         var exps = Array.isArray(s.expenses) ? s.expenses : [];
@@ -3538,10 +3559,10 @@ cerravolt@gmail.com`;
             (exps.length ? '<div class="fin-exp">Gastos: '+exps.map(function(e){ return escapeHtml(e.desc)+' '+formatCLP(e.amount); }).join(' · ')+'</div>' : '') +
           '</td>' +
           '<td class="mono">'+(s.invoiced ? escapeHtml(s.invoiceNumber||'Sí') : '—')+'</td>' +
-          '<td class="mono">'+formatCLP(s.amount)+'</td><td class="mono">'+formatCLP(expensesTotal(s))+'</td>' +
+          '<td class="mono">'+formatCLP(s.amount)+'</td><td class="mono">'+(ivaOf(s) ? formatCLP(ivaOf(s).iva) : '—')+'</td><td class="mono">'+formatCLP(expensesTotal(s))+'</td>' +
           '<td class="mono" style="color:'+(rowNet<0?'var(--danger)':'var(--green-ink)')+'">'+formatNet(rowNet)+'</td></tr>';
       }).join('') +
-      '</tbody><tfoot><tr><td></td><td><b>Total del mes</b></td><td></td><td class="mono"><b>'+formatCLP(billed)+'</b></td><td class="mono"><b>'+formatCLP(spent)+'</b></td><td class="mono"><b>'+formatNet(net)+'</b></td></tr></tfoot></table></div>' +
+      '</tbody><tfoot><tr><td></td><td><b>Total del mes</b></td><td></td><td class="mono"><b>'+formatCLP(billed)+'</b></td><td class="mono"><b>'+formatCLP(ivaTotal)+'</b></td><td class="mono"><b>'+formatCLP(spent)+'</b></td><td class="mono"><b>'+formatNet(net)+'</b></td></tr></tfoot></table></div>' +
       '<button class="btn btn-ghost btn-sm" id="btn-export-fin">⬇ CSV</button>' +
       '<div class="wa-hint" id="fin-hint" hidden></div>' +
     '</div>';
@@ -3549,15 +3570,15 @@ cerravolt@gmail.com`;
       tr.addEventListener('click', function(){ openDetail(tr.getAttribute('data-id')); });
     });
     document.getElementById('btn-export-fin').onclick = function(){
-      var rows = [['N° de seguimiento','Fecha','Cliente','Descripción','Monto','Gastos','Queda','Estado de cobro','Realizado','Factura emitida','N° de factura','Detalle de gastos']];
+      var rows = [['N° de seguimiento','Fecha','Cliente','Descripción','Monto','Gastos','Queda','Estado de cobro','Realizado','Factura emitida','N° de factura','IVA','Neto sin IVA','Detalle de gastos']];
       items.forEach(function(s){
         var exps = Array.isArray(s.expenses) ? s.expenses : [];
         rows.push([s.trackingCode||'', s.date, s.clientName||'', s.description||'', Number(s.amount)||0, expensesTotal(s),
           (Number(s.amount)||0) - expensesTotal(s), s.paymentStatus==='pagado'?'Pagado':'Pendiente', s.completed?'Sí':'No',
-          s.invoiced?'Sí':'No', s.invoiceNumber||'',
+          s.invoiced?'Sí':'No', s.invoiceNumber||'', ivaOf(s)?ivaOf(s).iva:'', ivaOf(s)?ivaOf(s).net:'',
           exps.map(function(e){ return e.desc+': '+e.amount; }).join(' | ')]);
       });
-      rows.push(['','','','Total del mes', billed, spent, net, '', '', '', '', '']);
+      rows.push(['','','','Total del mes', billed, spent, net, '', '', '', '', ivaTotal, '', '']);
       saveCsv('finanzas-cerravolt-'+prefix+'.csv', rowsToCsv(rows), document.getElementById('btn-export-fin'), document.getElementById('fin-hint'));
     };
   }
@@ -3942,7 +3963,7 @@ cerravolt@gmail.com`;
   /* ---------------- invoice (per service) ---------------- */
   function setupInvoice(id, s){
     var box = document.getElementById('m-invoice');
-    var invoiced = !!s.invoiced, number = s.invoiceNumber || '';
+    var invoiced = !!s.invoiced, number = s.invoiceNumber || '', mode = s.ivaMode === 'neto' ? 'neto' : 'incluido';
     var timer = null, dirty = false;
 
     async function save(){
@@ -3951,7 +3972,7 @@ cerravolt@gmail.com`;
       dirty = false;
       if(!state.db || !state.services.has(id)) return;
       try{
-        await state.db.collection('services').doc(id).update({ invoiced: invoiced, invoiceNumber: invoiced ? number.trim() : '' });
+        await state.db.collection('services').doc(id).update({ invoiced: invoiced, invoiceNumber: invoiced ? number.trim() : '', ivaMode: mode });
       }catch(err){
         console.error(err);
         dirty = true;
@@ -3963,12 +3984,28 @@ cerravolt@gmail.com`;
     box.innerHTML = '<div class="inv-box">' +
       '<div class="inv-head">Factura</div>' +
       '<label class="inv-check"><input type="checkbox" id="inv-yes"'+(invoiced?' checked':'')+'> Se generó factura</label>' +
-      '<input type="text" class="inv-num" id="inv-num" placeholder="N° de factura (ej: 1234)" maxlength="40" value="'+escapeHtml(number)+'"'+(invoiced?'':' hidden')+'>' +
+      '<div id="inv-more"'+(invoiced?'':' hidden')+' style="display:flex; flex-direction:column; gap:10px;">' +
+        '<input type="text" class="inv-num" id="inv-num" placeholder="N° de factura (ej: 1234)" maxlength="40" value="'+escapeHtml(number)+'">' +
+        '<select class="inv-num" id="inv-mode">' +
+          '<option value="incluido"'+(mode==='incluido'?' selected':'')+'>El monto del servicio ya incluye IVA ('+IVA_PCT+'%)</option>' +
+          '<option value="neto"'+(mode==='neto'?' selected':'')+'>El monto es neto: se suma IVA ('+IVA_PCT+'%)</option>' +
+        '</select>' +
+        '<div class="inv-calc" id="inv-calc"></div>' +
+      '</div>' +
     '</div>';
     var yes = document.getElementById('inv-yes'), num = document.getElementById('inv-num');
+    var more = document.getElementById('inv-more'), sel = document.getElementById('inv-mode');
+    function paintCalc(){
+      var c = ivaOf({ invoiced: true, amount: s.amount, ivaMode: mode });
+      document.getElementById('inv-calc').innerHTML =
+        '<span>Neto <b class="mono">'+formatCLP(c.net)+'</b></span>' +
+        '<span>IVA ('+IVA_PCT+'%) <b class="mono">'+formatCLP(c.iva)+'</b></span>' +
+        '<span>Total <b class="mono">'+formatCLP(c.total)+'</b></span>';
+    }
+    paintCalc();
     yes.addEventListener('change', function(){
       invoiced = yes.checked;
-      num.hidden = !invoiced;
+      more.hidden = !invoiced;
       if(invoiced) num.focus();
       dirty = true;
       save();
@@ -3980,6 +4017,12 @@ cerravolt@gmail.com`;
       timer = setTimeout(save, 400);
     });
     num.addEventListener('change', save);
+    sel.addEventListener('change', function(){
+      mode = sel.value;
+      paintCalc();
+      dirty = true;
+      save();
+    });
   }
 
   /* ---------------- expenses (per service) ---------------- */
