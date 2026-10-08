@@ -831,13 +831,19 @@
   #agendaRoot .exp-net{ border-top:1px dashed var(--border); padding-top:8px; }
   #agendaRoot .exp-net .pos{ color:var(--green-ink); }
   #agendaRoot .exp-net .neg{ color:var(--danger); }
-  #agendaRoot .exp-row{ display:flex; align-items:center; gap:8px; font-size:13px; padding:4px 0; border-bottom:1px solid var(--border-soft); }
-  #agendaRoot .exp-row span:first-child{ flex:1; }
-  #agendaRoot .exp-x{ border:none; background:none; color:var(--ink-faint); cursor:pointer; font-size:13px; padding:2px 6px; border-radius:6px; }
+  #agendaRoot .exp-x{ border:none; background:none; color:var(--ink-faint); cursor:pointer; font-size:12px; padding:2px 6px; border-radius:6px; }
   #agendaRoot .exp-x:hover{ color:var(--danger); background:var(--danger-soft); }
   #agendaRoot .exp-empty{ font-size:12.5px; color:var(--ink-faint); }
-  #agendaRoot .exp-add{ display:grid; grid-template-columns:1fr 110px auto; gap:6px; }
-  #agendaRoot .exp-add input{ border:1px solid var(--border); background:var(--surface); color:var(--ink); border-radius:var(--radius-sm); padding:8px 10px; font:inherit; font-size:13px; min-width:0; }
+  #agendaRoot .exp-item{ border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px; background:var(--surface); display:flex; flex-direction:column; gap:8px; }
+  #agendaRoot .exp-item-top{ display:flex; justify-content:space-between; align-items:center; font-size:11.5px; color:var(--ink-faint); font-family:var(--font-mono); }
+  #agendaRoot .exp-item input{ border:1px solid var(--border); background:var(--surface-2); color:var(--ink); border-radius:var(--radius-sm); padding:8px 10px; font:inherit; font-size:13px; width:100%; min-width:0; }
+  #agendaRoot .exp-cols{ display:grid; grid-template-columns:1fr 1.4fr 1fr; gap:8px; align-items:end; }
+  #agendaRoot .exp-cols label{ display:flex; flex-direction:column; gap:4px; font-size:11.5px; color:var(--ink-faint); }
+  #agendaRoot .exp-sub{ display:flex; flex-direction:column; gap:4px; font-size:11.5px; color:var(--ink-faint); text-align:right; }
+  #agendaRoot .exp-sub b{ font-size:14px; color:var(--ink); padding:7px 0; }
+  #agendaRoot .exp-addbtn{ width:100%; padding:9px; border-radius:var(--radius-sm); border:1px dashed var(--border); background:none; color:var(--accent-strong); font:inherit; font-size:13px; cursor:pointer; }
+  #agendaRoot .exp-addbtn:hover{ background:var(--accent-soft); }
+  #agendaRoot .card-exp{ font-size:11.5px; color:var(--ink-faint); }
   #agendaRoot .fin-row{ cursor:pointer; }
   #agendaRoot .fin-row:hover td{ background:var(--accent-soft); }
   #agendaRoot .fin-exp{ font-size:11.5px; color:var(--ink-faint); margin-top:2px; }
@@ -2883,6 +2889,7 @@ cerravolt@gmail.com`;
       '</div>' +
       '<div class="service-right">' +
         '<span class="amount">'+formatCLP(s.amount)+'</span>' +
+        (expensesTotal(s)>0 ? '<span class="card-exp">Gastos '+formatCLP(expensesTotal(s))+'</span>' : '') +
         '<span class="status-pill '+(s.paymentStatus==='pagado'?'pagado':'pendiente')+'">'+(s.paymentStatus==='pagado'?'Pagado':'Pendiente')+'</span>' +
         '<div class="wa-row">'+waTechButton(s,'wa-btn')+waClientButton(s,'wa-btn')+'</div>' +
       '</div>' +
@@ -3635,11 +3642,14 @@ cerravolt@gmail.com`;
   /* ---------------- modal helpers ---------------- */
   var overlay = document.getElementById('overlay');
   var modal = document.getElementById('modal');
+  var modalCloseHook = null;
+  function runModalHook(){ var h = modalCloseHook; modalCloseHook = null; if(h) h(); }
   function openModal(html){
+    runModalHook();
     modal.innerHTML = html;
     overlay.hidden = false;
   }
-  function closeModal(){ overlay.hidden = true; modal.innerHTML = ''; }
+  function closeModal(){ runModalHook(); overlay.hidden = true; modal.innerHTML = ''; }
   overlay.addEventListener('click', function(e){ if(e.target===overlay) closeModal(); });
   document.addEventListener('keydown', function(e){ if(e.key==='Escape' && !overlay.hidden) closeModal(); });
 
@@ -3744,45 +3754,104 @@ cerravolt@gmail.com`;
   document.getElementById('btn-new').onclick = function(){ openAppointmentForm(null); };
 
   /* ---------------- expenses (per service) ---------------- */
+  // Gastos como líneas editables igual que los ítems de la cotización:
+  // descripción, cantidad y precio unitario; el total se suma al final.
+  function newExpId(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,5); }
+
   function setupExpenses(id, s){
-    var exps = Array.isArray(s.expenses) ? s.expenses.slice() : [];
+    var exps = (Array.isArray(s.expenses) ? s.expenses : []).map(function(e){
+      var hasQP = e.qty != null || e.price != null;
+      return {
+        id: e.id || newExpId(),
+        desc: e.desc || '',
+        qty: hasQP ? (Number(e.qty)||0) : 1,
+        price: hasQP ? (Number(e.price)||0) : (Number(e.amount)||0)
+      };
+    });
     var box = document.getElementById('m-expenses');
-    async function persist(previous){
+    var timer = null, dirty = false;
+
+    function sub(e){ return (Number(e.qty)||0) * (Number(e.price)||0); }
+    function total(){ return exps.reduce(function(a,e){ return a + sub(e); }, 0); }
+    function payload(){
+      return exps.filter(function(e){ return e.desc.trim() || sub(e) > 0; }).map(function(e){
+        return { id:e.id, desc:e.desc.trim(), qty:Number(e.qty)||0, price:Number(e.price)||0, amount:sub(e) };
+      });
+    }
+    async function save(){
+      clearTimeout(timer); timer = null;
+      if(!dirty) return;
+      dirty = false;
+      if(!state.db || !state.services.has(id)) return;
       try{
-        await state.db.collection('services').doc(id).update({ expenses: exps });
+        await state.db.collection('services').doc(id).update({ expenses: payload() });
       }catch(err){
         console.error(err);
-        exps = previous;
-        alert('No se pudo guardar el gasto. Intenta de nuevo.');
+        dirty = true;
+        alert('No se pudieron guardar los gastos. Revisa tu conexión e intenta de nuevo.');
       }
-      paint();
     }
-    function paint(){
-      var total = expensesTotal({ expenses: exps });
-      var net = (Number(s.amount)||0) - total;
-      box.innerHTML = '<div class="exp-box">' +
-        '<div class="exp-head"><span>Gastos del servicio</span><span class="mono">'+formatCLP(total)+'</span></div>' +
-        (exps.length ? exps.map(function(e,i){
-          return '<div class="exp-row"><span>'+escapeHtml(e.desc)+'</span><span class="mono">'+formatCLP(e.amount)+'</span><button type="button" class="exp-x" data-i="'+i+'" title="Quitar gasto">✕</button></div>';
-        }).join('') : '<div class="exp-empty">Sin gastos registrados.</div>') +
-        '<div class="exp-add"><input type="text" id="exp-desc" placeholder="Ej: Materiales, bencina…"><input type="number" id="exp-amount" min="0" step="1" placeholder="Monto"><button type="button" class="btn btn-soft btn-sm" id="exp-add">Agregar</button></div>' +
-        '<div class="exp-net"><span>Queda (monto − gastos)</span><span class="mono '+(net<0?'neg':'pos')+'">'+formatNet(net)+'</span></div>' +
+    function scheduleSave(){ dirty = true; clearTimeout(timer); timer = setTimeout(save, 400); }
+    modalCloseHook = save;
+
+    function refreshTotals(){
+      var t = total(), net = (Number(s.amount)||0) - t;
+      document.getElementById('exp-total').textContent = formatCLP(t);
+      var n = document.getElementById('exp-net');
+      n.textContent = formatNet(net);
+      n.className = 'mono ' + (net<0 ? 'neg' : 'pos');
+    }
+    function rowHtml(e, i){
+      return '<div class="exp-item" data-i="'+i+'">' +
+        '<div class="exp-item-top"><span>Gasto '+(i+1)+'</span><button type="button" class="exp-x" title="Quitar gasto">✕ quitar</button></div>' +
+        '<input type="text" class="e-desc" placeholder="Descripción (ej: materiales, bencina)" value="'+escapeHtml(e.desc)+'">' +
+        '<div class="exp-cols">' +
+          '<label>Cantidad<input type="number" class="e-qty" min="0" step="any" value="'+e.qty+'"></label>' +
+          '<label>Precio unitario (CLP)<input type="number" class="e-price" min="0" step="1" value="'+e.price+'"></label>' +
+          '<div class="exp-sub">Subtotal<b class="mono">'+formatCLP(sub(e))+'</b></div>' +
+        '</div>' +
       '</div>';
-      box.querySelectorAll('.exp-x').forEach(function(btn){
-        btn.onclick = function(){
-          var previous = exps.slice();
-          exps.splice(Number(btn.getAttribute('data-i')), 1);
-          persist(previous);
+    }
+    function paint(focusLast){
+      box.innerHTML = '<div class="exp-box">' +
+        '<div class="exp-head"><span>Gastos del servicio</span></div>' +
+        (exps.length ? exps.map(rowHtml).join('') : '<div class="exp-empty">Aún no hay gastos. Agrega el primero abajo.</div>') +
+        '<button type="button" class="exp-addbtn" id="exp-add">+ Agregar gasto</button>' +
+        '<div class="exp-net"><span>Total gastos</span><span class="mono" id="exp-total"></span></div>' +
+        '<div class="exp-net"><span>Queda (monto − gastos)</span><span id="exp-net"></span></div>' +
+      '</div>';
+      box.querySelectorAll('.exp-item').forEach(function(row){
+        var i = Number(row.getAttribute('data-i'));
+        var d = row.querySelector('.e-desc'), q = row.querySelector('.e-qty'), p = row.querySelector('.e-price');
+        var subEl = row.querySelector('.exp-sub b');
+        function onInput(){
+          exps[i].desc = d.value;
+          exps[i].qty = Number(q.value) || 0;
+          exps[i].price = Number(p.value) || 0;
+          subEl.textContent = formatCLP(sub(exps[i]));
+          refreshTotals();
+          scheduleSave();
+        }
+        [d, q, p].forEach(function(el){
+          el.addEventListener('input', onInput);
+          el.addEventListener('change', function(){ save(); });
+        });
+        row.querySelector('.exp-x').onclick = function(){
+          exps.splice(i, 1);
+          dirty = true;
+          paint();
+          save();
         };
       });
       document.getElementById('exp-add').onclick = function(){
-        var desc = document.getElementById('exp-desc').value.trim();
-        var amount = Number(document.getElementById('exp-amount').value);
-        if(!desc || !(amount > 0)){ document.getElementById(desc ? 'exp-amount' : 'exp-desc').focus(); return; }
-        var previous = exps.slice();
-        exps.push({ id: Date.now().toString(36), desc: desc, amount: amount });
-        persist(previous);
+        exps.push({ id: newExpId(), desc: '', qty: 1, price: 0 });
+        paint(true);
       };
+      refreshTotals();
+      if(focusLast){
+        var inputs = box.querySelectorAll('.e-desc');
+        if(inputs.length) inputs[inputs.length-1].focus();
+      }
     }
     paint();
   }
