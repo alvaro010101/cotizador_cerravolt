@@ -123,6 +123,14 @@
     width:100%; max-width:820px; padding:28px; border:1px solid var(--line-strong);
     border-radius:12px; background:var(--panel); gap:30px;
   }
+  .panel.glass-panel{max-height:none; overflow:visible; padding:28px; gap:30px;}
+  .glass-details > summary{cursor:pointer; list-style:none; display:flex; align-items:center; justify-content:space-between; gap:8px; padding:2px 0;}
+  .glass-details > summary::-webkit-details-marker{display:none;}
+  .glass-details > summary h2{margin:0;}
+  .glass-details > summary::after{content:'▾'; color:var(--steel-500); font-size:14px; transition:transform .15s ease;}
+  .glass-details[open] > summary::after{transform:rotate(180deg);}
+  .glass-details[open] > summary{margin-bottom:14px;}
+  .glass-list-scroll{display:flex; flex-direction:column; gap:10px; margin-bottom:14px; max-height:300px; overflow-y:auto; padding-right:4px;}
   .glass-result{
     margin-top:6px; padding:12px 14px; border-radius:8px; background:var(--panel-2);
     border:1px solid var(--line-strong); display:flex; flex-direction:column; gap:6px;
@@ -1172,18 +1180,18 @@ cerravolt@gmail.com</textarea>
 
 <div class="glass-tab no-print" id="tabVidrios" style="display:none;">
   <div class="panel glass-panel">
-    <div class="field-group">
-      <h2>Catálogo de vidrios</h2>
+    <details class="field-group glass-details" id="glassDetails">
+      <summary><h2>Catálogo de vidrios <span id="glassCount"></span></h2></summary>
       <p style="font-size:11.5px; color:var(--steel-500); line-height:1.6; margin:0 0 12px;">
         Define el valor por m² de cada tipo de vidrio. Se guardan en tu cuenta y quedan disponibles para todas tus cotizaciones futuras.
       </p>
-      <div id="glassTypesList" style="display:flex; flex-direction:column; gap:10px; margin-bottom:14px;"></div>
+      <div id="glassTypesList" class="glass-list-scroll"></div>
       <div class="row2">
         <div class="field"><label>Nuevo tipo de vidrio</label><input id="newGlassName" placeholder="Ej: Laminado 6+6"></div>
         <div class="field"><label>Precio por m² (CLP)</label><input id="newGlassPrice" type="number" min="0" step="100" value="0"></div>
       </div>
       <button class="add-btn" type="button" onclick="addGlassType()">+ Agregar tipo de vidrio</button>
-    </div>
+    </details>
 
     <div class="field-group">
       <h2>Calculadora</h2>
@@ -1716,6 +1724,7 @@ cerravolt@gmail.com</textarea>
       wrap.innerHTML = '<p style="font-size:12.5px; color:var(--steel-500);">Sin tipos de vidrio todavía.</p>';
       return;
     }
+    document.getElementById('glassCount').textContent = '(' + glassTypes.length + ')';
     wrap.innerHTML = glassTypes.map(g => `
       <div class="glass-type-row">
         <div class="field"><label>Nombre</label><input value="${escapeAttr(g.name)}" onchange="setGlassField('${g.id}','name',this.value)"></div>
@@ -1743,7 +1752,11 @@ cerravolt@gmail.com</textarea>
     const priceEl = document.getElementById('newGlassPrice');
     const name = nameEl.value.trim();
     if(!name){ nameEl.focus(); return; }
-    const id = cliSlug(name);
+    if(glassTypes.some(g => (g.name || '').trim().toLowerCase() === name.toLowerCase())){
+      alert('Ya existe un tipo de vidrio con ese nombre. Edita su precio en la lista.');
+      return;
+    }
+    const id = 'g' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     try{
       await userGlassRef().doc(id).set({ name, pricePerM2: parseFloat(priceEl.value) || 0 });
       nameEl.value = '';
@@ -3429,7 +3442,7 @@ cerravolt@gmail.com`;
       openAppointmentForm(null, { technician: t.name });
     };
     document.getElementById('tech-edit').onclick = function(){
-      openTechnicianForm(Object.assign({id:t.id}, t));
+      openTechnicianForm(Object.assign({}, t, { id: state.activeTechId }));
     };
     document.getElementById('tech-pagos').onclick = function(){
       switchTab('pagos');
@@ -3443,7 +3456,7 @@ cerravolt@gmail.com`;
         '<span style="display:flex; gap:8px;"><button class="btn btn-ghost btn-sm" id="tech-cancel-del">Cancelar</button><button class="btn btn-danger btn-sm" id="tech-confirm-del">Eliminar</button></span></div>';
       document.getElementById('tech-cancel-del').onclick = function(){ document.getElementById('tech-del-slot').innerHTML=''; };
       document.getElementById('tech-confirm-del').onclick = async function(){
-        await state.db.collection('technicians').doc(t.id).delete();
+        await state.db.collection('technicians').doc(state.activeTechId).delete();
         state.activeTechId = null;
       };
     };
@@ -3491,7 +3504,20 @@ cerravolt@gmail.com`;
       btn.disabled = true; btn.textContent = 'Guardando…';
       try{
         if(isEdit){
-          await state.db.collection('technicians').doc(existing.id).update(payload);
+          // Los servicios guardan al técnico por nombre: si se renombra, se actualizan sus servicios
+          // en la misma operación (atómica) para que el técnico y su historial nunca queden desfasados.
+          var affected = [];
+          if(existing.name && existing.name !== name){
+            state.services.forEach(function(v, sid){ if(v.technician === existing.name) affected.push(sid); });
+          }
+          var first = true;
+          do{
+            var batch = state.db.firestore.batch();
+            if(first) batch.update(state.db.collection('technicians').doc(existing.id), payload);
+            first = false;
+            affected.splice(0, 400).forEach(function(sid){ batch.update(state.db.collection('services').doc(sid), { technician: name }); });
+            await batch.commit();
+          } while(affected.length);
         } else {
           payload.createdAt = new Date().toISOString();
           await state.db.collection('technicians').add(payload);
@@ -3860,6 +3886,20 @@ cerravolt@gmail.com`;
     }
   }
 
+  // Por servicio: base = monto - gastos pagados (nunca negativa); efectivo = lo que ya recibió el técnico.
+  function payTotals(items, pct){
+    var t = { count: items.length, billed: 0, spent: 0, base: 0, cash: 0 };
+    items.forEach(function(s){
+      var amount = Number(s.amount)||0, spent = expensesTotal(s);
+      t.billed += amount; t.spent += spent;
+      t.base += Math.max(0, amount - spent);
+      t.cash += Math.max(0, Number(s.cashAmount)||0);
+    });
+    t.commission = pct ? Math.round(t.base * pct / 100) : null;
+    t.toPay = t.commission == null ? null : t.commission - t.cash;
+    return t;
+  }
+
   function renderPagosTab(){
     ensurePayRangeDefaults();
     var techSel = document.getElementById('pay-tech').value;
@@ -3868,48 +3908,55 @@ cerravolt@gmail.com`;
     var onlyDone = document.getElementById('pay-only-done').checked;
     var onlyPaid = document.getElementById('pay-only-paid').checked;
     var box = document.getElementById('pagos-results');
+    var NOTE = '<div class="field-hint">La comisión se calcula sobre el monto menos los gastos de cada servicio. El efectivo ya recibido por el técnico se descuenta del pago.</div>';
 
     if(!techSel){
       var rows = Array.from(state.technicians.values()).map(function(t){
         var items = computePayroll(t.name, from, to, onlyDone, onlyPaid);
-        var total = items.reduce(function(a,s){ return a+(Number(s.amount)||0); }, 0);
         var pct = Number(t.commissionPct)||0;
-        return { name:t.name, count:items.length, total:total, pct:pct, pay: pct ? total*pct/100 : null };
+        return Object.assign({ name: t.name, pct: pct }, payTotals(items, pct));
       }).filter(function(r){ return r.count>0; });
-      rows.sort(function(a,b){ return b.total-a.total; });
+      rows.sort(function(a,b){ return b.billed-a.billed; });
 
       if(rows.length===0){
         box.innerHTML = '<div class="empty-state"><div class="glyph">💵</div><div class="msg">No hay servicios asignados a técnicos en este rango.</div></div>';
         return;
       }
-      var grandCount = rows.reduce(function(a,r){ return a+r.count; },0);
-      var grandTotal = rows.reduce(function(a,r){ return a+r.total; },0);
-      var grandPay = rows.reduce(function(a,r){ return a+(r.pay||0); },0);
+      var g = { count:0, billed:0, spent:0, base:0, cash:0, commission:0, toPay:0 };
+      rows.forEach(function(r){
+        g.count += r.count; g.billed += r.billed; g.spent += r.spent; g.base += r.base; g.cash += r.cash;
+        g.commission += r.commission||0; g.toPay += r.toPay||0;
+      });
       box.innerHTML = '<div class="pay-summary">' +
         '<div class="pay-stat-grid">' +
-          '<div class="pay-stat"><div class="l">Servicios</div><div class="v">'+grandCount+'</div></div>' +
-          '<div class="pay-stat"><div class="l">Total facturado</div><div class="v">'+formatCLP(grandTotal)+'</div></div>' +
-          '<div class="pay-stat"><div class="l">Total a pagar</div><div class="v">'+formatCLP(grandPay)+'</div></div>' +
-        '</div>' +
-        '<div class="pay-table-wrap"><table class="pay-table"><thead><tr><th>Técnico</th><th>Servicios</th><th>Facturado</th><th>Comisión</th><th>A pagar</th></tr></thead><tbody>' +
+          '<div class="pay-stat"><div class="l">Servicios</div><div class="v">'+g.count+'</div></div>' +
+          '<div class="pay-stat"><div class="l">Total facturado</div><div class="v">'+formatCLP(g.billed)+'</div></div>' +
+          '<div class="pay-stat"><div class="l">Gastos</div><div class="v">'+formatCLP(g.spent)+'</div></div>' +
+          '<div class="pay-stat"><div class="l">Base (monto − gastos)</div><div class="v">'+formatCLP(g.base)+'</div></div>' +
+          '<div class="pay-stat"><div class="l">Comisiones</div><div class="v">'+formatCLP(g.commission)+'</div></div>' +
+          '<div class="pay-stat"><div class="l">Efectivo ya recibido</div><div class="v">'+formatCLP(g.cash)+'</div></div>' +
+          '<div class="pay-stat"><div class="l">Total a pagar</div><div class="v">'+formatNet(g.toPay)+'</div></div>' +
+        '</div>' + NOTE +
+        '<div class="pay-table-wrap"><table class="pay-table"><thead><tr><th>Técnico</th><th>Servicios</th><th>Facturado</th><th>Gastos</th><th>Base</th><th>Comisión</th><th>Efectivo</th><th>A pagar</th></tr></thead><tbody>' +
         rows.map(function(r){
-          return '<tr><td>'+escapeHtml(r.name)+'</td><td class="mono">'+r.count+'</td><td class="mono">'+formatCLP(r.total)+'</td><td class="mono">'+(r.pct?r.pct+'%':'—')+'</td><td class="mono">'+(r.pay!=null?formatCLP(r.pay):'—')+'</td></tr>';
+          return '<tr><td>'+escapeHtml(r.name)+'</td><td class="mono">'+r.count+'</td><td class="mono">'+formatCLP(r.billed)+'</td><td class="mono">'+formatCLP(r.spent)+'</td><td class="mono">'+formatCLP(r.base)+'</td>' +
+            '<td class="mono">'+(r.pct ? r.pct+'% = '+formatCLP(r.commission) : '—')+'</td><td class="mono">'+formatCLP(r.cash)+'</td>' +
+            '<td class="mono"><b>'+(r.toPay!=null ? formatNet(r.toPay) : '—')+'</b></td></tr>';
         }).join('') +
         '</tbody></table></div>' +
         '<button class="btn btn-ghost btn-sm" id="btn-export-payroll">⬇ CSV</button>' +
         '<div class="wa-hint" id="pagos-hint" hidden></div>' +
       '</div>';
       document.getElementById('btn-export-payroll').onclick = function(){
-        var csvRows = [['Técnico','Servicios','Monto facturado','Comisión %','Monto a pagar']];
-        rows.forEach(function(r){ csvRows.push([r.name, r.count, r.total, r.pct||'', r.pay!=null?r.pay:'']); });
+        var csvRows = [['Técnico','Servicios','Facturado','Gastos','Base (monto - gastos)','Comisión %','Comisión','Efectivo recibido','A pagar']];
+        rows.forEach(function(r){ csvRows.push([r.name, r.count, r.billed, r.spent, r.base, r.pct||'', r.commission!=null?r.commission:'', r.cash, r.toPay!=null?r.toPay:'']); });
         saveCsv('pagos-cerravolt-'+from+'_a_'+to+'.csv', rowsToCsv(csvRows), document.getElementById('btn-export-payroll'), document.getElementById('pagos-hint'));
       };
     } else {
       var items = computePayroll(techSel, from, to, onlyDone, onlyPaid);
-      var total = items.reduce(function(a,s){ return a+(Number(s.amount)||0); }, 0);
       var techDoc = Array.from(state.technicians.values()).find(function(t){ return t.name===techSel; });
       var pct = techDoc ? Number(techDoc.commissionPct)||0 : 0;
-      var pay = pct ? total*pct/100 : null;
+      var T = payTotals(items, pct);
       var doneCount = items.filter(function(s){ return s.completed; }).length;
       var paidCount = items.filter(function(s){ return s.paymentStatus==='pagado'; }).length;
 
@@ -3919,27 +3966,43 @@ cerravolt@gmail.com`;
           '<div class="pay-stat"><div class="l">Servicios</div><div class="v">'+items.length+'</div></div>' +
           '<div class="pay-stat"><div class="l">Realizados</div><div class="v">'+doneCount+'</div></div>' +
           '<div class="pay-stat"><div class="l">Cobrados</div><div class="v">'+paidCount+'</div></div>' +
-          '<div class="pay-stat"><div class="l">Facturado</div><div class="v">'+formatCLP(total)+'</div></div>' +
+          '<div class="pay-stat"><div class="l">Facturado</div><div class="v">'+formatCLP(T.billed)+'</div></div>' +
+          '<div class="pay-stat"><div class="l">Gastos</div><div class="v">'+formatCLP(T.spent)+'</div></div>' +
+          '<div class="pay-stat"><div class="l">Base (monto − gastos)</div><div class="v">'+formatCLP(T.base)+'</div></div>' +
         '</div>' +
-        (pct ? '<div class="pay-stat-grid"><div class="pay-stat"><div class="l">Comisión ('+pct+'%) a pagar</div><div class="v" style="color:var(--green-ink)">'+formatCLP(pay)+'</div></div></div>'
-          : '<div class="field-hint">Este técnico no tiene una comisión configurada. Edítala en la pestaña Técnicos para calcular automáticamente el monto a pagar.</div>') +
-        (items.length ? '<div class="pay-table-wrap"><table class="pay-table"><thead><tr><th>Fecha</th><th>Cliente</th><th>Monto</th><th>Estado</th></tr></thead><tbody>' +
+        (pct ? '<div class="pay-stat-grid">' +
+            '<div class="pay-stat"><div class="l">Comisión ('+pct+'% de la base)</div><div class="v">'+formatCLP(T.commission)+'</div></div>' +
+            '<div class="pay-stat"><div class="l">Efectivo ya recibido</div><div class="v">'+formatCLP(T.cash)+'</div></div>' +
+            '<div class="pay-stat"><div class="l">'+(T.toPay<0 ? 'Debe entregar a la empresa' : 'A pagar (comisión − efectivo)')+'</div><div class="v" style="color:'+(T.toPay<0?'var(--danger)':'var(--green-ink)')+'">'+formatCLP(Math.abs(T.toPay))+'</div></div>' +
+          '</div>' + NOTE
+          : '<div class="pay-stat-grid"><div class="pay-stat"><div class="l">Efectivo ya recibido</div><div class="v">'+formatCLP(T.cash)+'</div></div></div>' +
+            '<div class="field-hint">Este técnico no tiene una comisión configurada. Edítala en la pestaña Técnicos para calcular automáticamente el monto a pagar.</div>') +
+        (items.length ? '<div class="pay-table-wrap"><table class="pay-table"><thead><tr><th>Fecha</th><th>Cliente</th><th>Monto</th><th>Gastos</th><th>Base</th><th>Efectivo</th><th>Estado</th></tr></thead><tbody>' +
           items.map(function(s){
-            var d = dateFromISO(s.date);
-            return '<tr><td>'+d.getDate()+' '+MONTHS[d.getMonth()].slice(0,3)+'</td><td>'+escapeHtml(s.clientName||'')+'</td><td class="mono">'+formatCLP(s.amount)+'</td><td>'+(s.paymentStatus==='pagado'?'Pagado':'Pendiente')+(s.completed?' · Realizado':'')+'</td></tr>';
+            var d = dateFromISO(s.date), pp = payTotals([s], 0);
+            return '<tr class="fin-row" data-id="'+s.id+'"><td>'+d.getDate()+' '+MONTHS[d.getMonth()].slice(0,3)+'</td><td>'+escapeHtml(s.clientName||'')+'</td>' +
+              '<td class="mono">'+formatCLP(s.amount)+'</td><td class="mono">'+formatCLP(pp.spent)+'</td><td class="mono">'+formatCLP(pp.base)+'</td><td class="mono">'+formatCLP(pp.cash)+'</td>' +
+              '<td>'+(s.paymentStatus==='pagado'?'Pagado':'Pendiente')+'</td></tr>';
           }).join('') + '</tbody></table></div>'
           : '<div class="empty-state" style="padding:24px;"><div class="msg">No hay servicios de este técnico en el rango seleccionado.</div></div>') +
         '<button class="btn btn-ghost btn-sm" id="btn-export-payroll">⬇ CSV</button>' +
         '<div class="wa-hint" id="pagos-hint" hidden></div>' +
       '</div>';
+      box.querySelectorAll('.fin-row').forEach(function(tr){
+        tr.addEventListener('click', function(){ openDetail(tr.getAttribute('data-id')); });
+      });
       document.getElementById('btn-export-payroll').onclick = function(){
-        var csvRows = [['N° de seguimiento','Fecha','Hora','Cliente','Monto','Estado de cobro','Realizado']];
+        var csvRows = [['N° de seguimiento','Fecha','Hora','Cliente','Monto','Gastos','Base (monto - gastos)','Efectivo recibido','Estado de cobro','Realizado']];
         items.forEach(function(s){
-          csvRows.push([s.trackingCode||'', s.date, s.time||'', s.clientName||'', s.amount||0, s.paymentStatus==='pagado'?'Pagado':'Pendiente', s.completed?'Sí':'No']);
+          var pp = payTotals([s], 0);
+          csvRows.push([s.trackingCode||'', s.date, s.time||'', s.clientName||'', s.amount||0, pp.spent, pp.base, pp.cash, s.paymentStatus==='pagado'?'Pagado':'Pendiente', s.completed?'Sí':'No']);
         });
-        csvRows.push(['','','','','','','']);
-        csvRows.push(['','Total facturado','','','',total,'']);
-        if(pct) csvRows.push(['','Comisión '+pct+'%','','','',pay,'']);
+        csvRows.push(['','','','','','','','','','']);
+        csvRows.push(['','Totales','','',T.billed,T.spent,T.base,T.cash,'','']);
+        if(pct){
+          csvRows.push(['','Comisión '+pct+'% de la base','','','','','',T.commission,'','']);
+          csvRows.push(['','A pagar (comisión - efectivo)','','','','','',T.toPay,'','']);
+        }
         saveCsv('pago-'+techSel.toLowerCase().replace(/\s+/g,'-')+'-'+from+'_a_'+to+'.csv', rowsToCsv(csvRows), document.getElementById('btn-export-payroll'), document.getElementById('pagos-hint'));
       };
     }
@@ -4080,6 +4143,58 @@ cerravolt@gmail.com`;
     };
   }
   document.getElementById('btn-new').onclick = function(){ openAppointmentForm(null); };
+
+  /* ---------------- payment split: cash vs transfer (per service) ---------------- */
+  // El efectivo lo recibe el técnico: se registra aquí y se descuenta de su pago en la pestaña Pagos.
+  function setupPayment(id, s){
+    var box = document.getElementById('m-payment');
+    var amount = Number(s.amount)||0;
+    var cash = Math.min(Math.max(0, Number(s.cashAmount)||0), amount);
+    var timer = null, dirty = false;
+
+    async function save(){
+      clearTimeout(timer); timer = null;
+      if(!dirty) return;
+      dirty = false;
+      if(!state.db || !state.services.has(id)) return;
+      try{
+        await state.db.collection('services').doc(id).update({ cashAmount: cash });
+      }catch(err){
+        console.error(err);
+        dirty = true;
+        alert('No se pudo guardar la forma de pago. Revisa tu conexión e intenta de nuevo.');
+      }
+    }
+    modalCloseHooks.push(save);
+
+    function pctOf(c){ return amount > 0 ? Math.round(c / amount * 10000) / 100 : ''; }
+    box.innerHTML = '<div class="inv-box">' +
+      '<div class="inv-head">Forma de pago del cliente</div>' +
+      '<div class="exp-cols">' +
+        '<label>% en efectivo<input type="number" class="inv-num" id="pay-pct" min="0" max="100" step="any" value="'+pctOf(cash)+'"></label>' +
+        '<label>Efectivo (CLP)<input type="number" class="inv-num" id="pay-cash" min="0" step="1" value="'+cash+'"></label>' +
+        '<div class="exp-sub">Transferencia<b class="mono" id="pay-transfer"></b></div>' +
+      '</div>' +
+      '<div class="fin-note" style="font-size:12px; color:var(--ink-faint); line-height:1.5;">El efectivo lo recibe el técnico y se descuenta de su pago en la pestaña Pagos.</div>' +
+    '</div>';
+    var pctEl = document.getElementById('pay-pct'), cashEl = document.getElementById('pay-cash');
+    function paint(){ document.getElementById('pay-transfer').textContent = formatCLP(amount - cash); }
+    paint();
+    function changed(){ dirty = true; paint(); clearTimeout(timer); timer = setTimeout(save, 400); }
+    pctEl.addEventListener('input', function(){
+      var pct = Math.min(100, Math.max(0, Number(pctEl.value)||0));
+      cash = Math.round(amount * pct / 100);
+      cashEl.value = cash;
+      changed();
+    });
+    cashEl.addEventListener('input', function(){
+      cash = Math.min(amount, Math.max(0, Math.round(Number(cashEl.value)||0)));
+      if(Number(cashEl.value) > amount) cashEl.value = cash;
+      pctEl.value = pctOf(cash);
+      changed();
+    });
+    [pctEl, cashEl].forEach(function(el){ el.addEventListener('change', save); });
+  }
 
   /* ---------------- invoice (per service) ---------------- */
   function setupInvoice(id, s){
@@ -4313,6 +4428,7 @@ cerravolt@gmail.com`;
         '<div class="detail-row"><div class="detail-icon">💰</div><div class="detail-text"><div class="l">Monto</div><div class="v mono">'+formatCLP(s.amount)+'</div></div></div>' +
         (s.technician ? '<div class="detail-row"><div class="detail-icon">🔧</div><div class="detail-text"><div class="l">Técnico asignado</div><div class="v">'+escapeHtml(s.technician)+'</div></div></div>' : '') +
         (s.notes ? '<div class="detail-row"><div class="detail-icon">🗒️</div><div class="detail-text"><div class="l">Notas</div><div class="v">'+escapeHtml(s.notes)+'</div></div></div>' : '') +
+        '<div id="m-payment"></div>' +
         '<div id="m-invoice"></div>' +
         '<div id="m-expenses"></div>' +
         '<div id="m-confirm-slot"></div>' +
@@ -4324,6 +4440,7 @@ cerravolt@gmail.com`;
     openModal(html);
     document.getElementById('m-close').onclick = closeModal;
     document.getElementById('m-edit').onclick = function(){ openAppointmentForm(Object.assign({id:id}, s)); };
+    setupPayment(id, s);
     setupInvoice(id, s);
     setupExpenses(id, s);
     var oq = document.getElementById('m-open-quote');
