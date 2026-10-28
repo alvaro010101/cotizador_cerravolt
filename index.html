@@ -879,6 +879,13 @@
   #agendaRoot .fin-section h3{ margin:0; font-size:16px; font-family:var(--font-display); }
   #agendaRoot .fin-section h4{ margin:6px 0 0; font-size:13px; color:var(--ink-soft); }
   #agendaRoot .fin-note{ font-size:12px; color:var(--ink-faint); line-height:1.5; }
+  #agendaRoot .res-table td:last-child{ text-align:right; white-space:nowrap; }
+  #agendaRoot .res-sub td{ border-top:2px solid var(--border); font-weight:700; }
+  #agendaRoot .res-total td{ border-top:2px solid var(--ink); font-weight:700; font-size:15px; }
+  #agendaRoot .cat-bars{ display:flex; flex-direction:column; gap:8px; }
+  #agendaRoot .cat-bar{ display:grid; grid-template-columns:160px 1fr auto; gap:10px; align-items:center; font-size:13px; }
+  #agendaRoot .cat-bar .bar{ height:8px; border-radius:99px; background:var(--accent-soft); overflow:hidden; }
+  #agendaRoot .cat-bar .bar i{ display:block; height:100%; background:var(--accent); border-radius:99px; }
   #agendaRoot .fin-row{ cursor:pointer; }
   #agendaRoot .fin-row:hover td{ background:var(--accent-soft); }
   #agendaRoot .fin-exp{ font-size:11.5px; color:var(--ink-faint); margin-top:2px; }
@@ -1240,8 +1247,8 @@ cerravolt@gmail.com</textarea>
       <div class="side-summary-row"><span>Servicios agendados</span><span class="v" id="sum-count">–</span></div>
       <div class="side-summary-row"><span>Por cobrar</span><span class="v amber" id="sum-pending">–</span></div>
       <div class="side-summary-row"><span>Cobrado</span><span class="v green" id="sum-paid">–</span></div>
-      <div class="side-summary-row"><span>Gastos</span><span class="v red" id="sum-expenses">–</span></div>
-      <div class="side-summary-row"><span>Queda (monto − gastos)</span><span class="v" id="sum-net">–</span></div>
+      <div class="side-summary-row"><span>Gastos y compras</span><span class="v red" id="sum-expenses">–</span></div>
+      <div class="side-summary-row"><span>Queda del mes (est.)</span><span class="v" id="sum-net">–</span></div>
       <div class="side-summary-row"><span>IVA ventas</span><span class="v" id="sum-iva-v">–</span></div>
       <div class="side-summary-row"><span>IVA compras</span><span class="v" id="sum-iva-c">–</span></div>
       <div class="side-summary-row"><span>IVA a pagar</span><span class="v amber" id="sum-iva">–</span></div>
@@ -1261,6 +1268,7 @@ cerravolt@gmail.com</textarea>
       <button class="tab" data-tab="clientes" id="tab-clientes">Clientes <span class="count" id="clients-count"></span></button>
       <button class="tab" data-tab="tecnicos" id="tab-tecnicos">Técnicos <span class="count" id="techs-count"></span></button>
       <button class="tab" data-tab="pagos" id="tab-pagos">Pagos</button>
+      <button class="tab" data-tab="compras" id="tab-compras">Compras</button>
       <button class="tab" data-tab="finanzas" id="tab-finanzas">Finanzas</button>
     </nav>
 
@@ -1344,6 +1352,17 @@ cerravolt@gmail.com</textarea>
           <label class="pay-check"><input type="checkbox" id="pay-only-paid"> Solo servicios cobrados</label>
         </div>
         <div class="pagos-results" id="pagos-results"></div>
+      </div>
+    </section>
+
+    <section id="view-compras" hidden>
+      <div class="pagos-wrap">
+        <div class="pagos-filters">
+          <button class="btn btn-primary btn-sm btn-block" id="btn-new-purchase">+ Nueva compra o gasto</button>
+          <div class="field"><label>Mes</label><input type="month" id="buy-month"></div>
+          <div class="field"><label>Categoría</label><select id="buy-cat"><option value="">Todas las categorías</option></select></div>
+        </div>
+        <div class="pagos-results" id="buy-results"></div>
       </div>
     </section>
 
@@ -2717,6 +2736,7 @@ cerravolt@gmail.com`;
     services: new Map(),   // id -> data
     clients: new Map(),    // id (phone) -> data
     technicians: new Map(),// id -> data
+    purchases: new Map(),  // id -> compra o gasto general
     selectedDate: isoFromDate(new Date()),
     calYear: new Date().getFullYear(),
     calMonth: new Date().getMonth(),
@@ -2803,6 +2823,16 @@ cerravolt@gmail.com`;
     }, function(err){
       console.error('technicians snapshot error', err);
       showBanner('No se pudo sincronizar los técnicos (' + err.code + '). Revisa las reglas de Firestore.');
+    }));
+
+    unsubs.push(db.collection('purchases').orderBy('date').onSnapshot(function(snap){
+      var m = new Map();
+      snap.docs.forEach(function(d){ m.set(d.id, d.data()); });
+      state.purchases = m;
+      renderAll();
+    }, function(err){
+      console.error('purchases snapshot error', err);
+      showBanner('No se pudo sincronizar las compras (' + err.code + '). Revisa las reglas de Firestore.');
     }));
   }
 
@@ -2896,6 +2926,12 @@ cerravolt@gmail.com`;
     return out;
   }
   // Compras/gastos cuyo mes es el de la FECHA DE COMPRA (si falta, la del servicio)
+  // Compras y gastos de un mes (por FECHA DE COMPRA): los gastos de cada servicio + las compras generales.
+  function purchaseParts(p){
+    var net = Number(p.net)||0;
+    var iva = p.iva === true ? Math.round(net * IVA_PCT / 100) : 0;
+    return { net: net, iva: iva, gross: net + iva };
+  }
   function purchasesInMonth(prefix){
     var out = [];
     state.services.forEach(function(v,id){
@@ -2903,11 +2939,70 @@ cerravolt@gmail.com`;
         var when = e.date || v.date;
         if(ymOf(when) !== prefix) return;
         var p = expParts(e);
-        out.push({ id:id, s:v, e:e, when:when, net:p.net, iva:p.iva, gross:p.gross });
+        out.push({
+          kind:'service', refId:id, attr:'data-id="'+id+'"', when:when, net:p.net, iva:p.iva, gross:p.gross,
+          labelHtml: escapeHtml(v.clientName||'') + (v.trackingCode ? ' <span class="mono" style="color:var(--ink-faint)">'+escapeHtml(v.trackingCode)+'</span>' : ''),
+          labelText: v.clientName||'', trackingText: v.trackingCode||'',
+          descHtml: escapeHtml(e.desc||'') + (e.qty>1 ? ' <span class="fin-exp">('+e.qty+' × '+formatCLP(e.price)+')</span>' : '') + (e.iva===true ? '' : ' <span class="fin-exp">sin IVA</span>'),
+          descText: e.desc||''
+        });
+      });
+    });
+    state.purchases.forEach(function(pu,id){
+      if(ymOf(pu.date) !== prefix) return;
+      var p = purchaseParts(pu);
+      out.push({
+        kind:'general', refId:id, attr:'data-purchase="'+id+'"', when:pu.date, net:p.net, iva:p.iva, gross:p.gross,
+        labelHtml: 'General' + (pu.category ? ' · ' + escapeHtml(pu.category) : ''),
+        labelText: 'General' + (pu.category ? ' · ' + pu.category : ''), trackingText: '',
+        descHtml: escapeHtml(pu.desc||'') + (pu.supplier ? ' <span class="fin-exp">'+escapeHtml(pu.supplier)+'</span>' : '') +
+          (pu.docNumber ? ' <span class="fin-exp">N° '+escapeHtml(pu.docNumber)+'</span>' : '') + (pu.iva===true ? '' : ' <span class="fin-exp">sin IVA</span>'),
+        descText: pu.desc||''
       });
     });
     out.sort(function(a,b){ return a.when.localeCompare(b.when); });
     return out;
+  }
+
+  // Resultado del mes: ingresos de los servicios del mes - todas las compras y gastos del mes
+  // - comisiones de técnicos - IVA a pagar (IVA ventas - IVA compras, si es positivo).
+  function monthResult(prefix){
+    var pctByTech = {};
+    state.technicians.forEach(function(t){ if(t.name) pctByTech[t.name] = Number(t.commissionPct)||0; });
+    var income = 0, paid = 0, pending = 0, commission = 0;
+    state.services.forEach(function(v){
+      if(ymOf(v.date) !== prefix) return;
+      var iv = ivaOf(v), total = iv ? iv.total : (Number(v.amount)||0);
+      income += total;
+      if(v.paymentStatus === 'pagado') paid += total; else pending += total;
+      var pct = pctByTech[v.technician] || 0;
+      if(pct) commission += Math.round(Math.max(0, (Number(v.amount)||0) - expensesTotal(v)) * pct / 100);
+    });
+    var purch = purchasesInMonth(prefix);
+    var svcSpent = 0, genSpent = 0;
+    purch.forEach(function(r){ if(r.kind === 'service') svcSpent += r.gross; else genSpent += r.gross; });
+    var ivaV = sumBy(salesInMonth(prefix), 'iva'), ivaC = sumBy(purch, 'iva');
+    var due = ivaV - ivaC, ivaPay = Math.max(0, due);
+    var before = income - svcSpent - genSpent - commission;
+    return { income:income, paid:paid, pending:pending, svcSpent:svcSpent, genSpent:genSpent, commission:commission,
+             ivaV:ivaV, ivaC:ivaC, due:due, ivaPay:ivaPay, before:before, after:before - ivaPay };
+  }
+  function resultBlockHtml(prefix){
+    var r = monthResult(prefix);
+    return '<div class="fin-section">' +
+      '<h3>Resultado de '+monthLabel(prefix)+': lo que queda</h3>' +
+      '<div class="pay-table-wrap"><table class="pay-table res-table"><tbody>' +
+        '<tr><td>Ingresos de los servicios del mes <span class="fin-exp">cobrado '+formatCLP(r.paid)+' · por cobrar '+formatCLP(r.pending)+'</span></td><td class="mono">'+formatCLP(r.income)+'</td></tr>' +
+        '<tr><td>− Gastos de los servicios (materiales, etc.)</td><td class="mono">'+formatCLP(r.svcSpent)+'</td></tr>' +
+        '<tr><td>− Compras y gastos generales</td><td class="mono">'+formatCLP(r.genSpent)+'</td></tr>' +
+        '<tr><td>− Comisiones de técnicos <span class="fin-exp">calculadas sobre monto − gastos</span></td><td class="mono">'+formatCLP(r.commission)+'</td></tr>' +
+        '<tr class="res-sub"><td>Queda antes de IVA</td><td class="mono">'+formatNet(r.before)+'</td></tr>' +
+        '<tr><td>− IVA a pagar del mes <span class="fin-exp">IVA ventas '+formatCLP(r.ivaV)+' − IVA compras '+formatCLP(r.ivaC)+'</span></td><td class="mono">'+formatCLP(r.ivaPay)+'</td></tr>' +
+        '<tr class="res-total"><td>Queda después de IVA</td><td class="mono" style="color:'+(r.after<0?'var(--danger)':'var(--green-ink)')+'">'+formatNet(r.after)+'</td></tr>' +
+      '</tbody></table></div>' +
+      '<div class="fin-note">Estimación de caja: los ingresos se toman por la fecha del servicio, las compras por su fecha de compra y el IVA por las fechas de factura y de compra.' +
+        (r.due < 0 ? ' Este mes el IVA de compras supera al de ventas: queda un remanente a favor de '+formatCLP(-r.due)+' que no se suma al resultado.' : '') + '</div>' +
+    '</div>';
   }
   function sumBy(list, key){ return list.reduce(function(a,x){ return a + (x[key]||0); }, 0); }
   function fmtShortDate(iso){
@@ -3112,8 +3207,10 @@ cerravolt@gmail.com`;
       else pending += Number(v.amount)||0;
       spent += expensesTotal(v);
     });
-    var net = paid + pending - spent;
-    var ivaV = sumBy(salesInMonth(prefix), 'iva'), ivaC = sumBy(purchasesInMonth(prefix), 'iva');
+    var res = monthResult(prefix);
+    spent = res.svcSpent + res.genSpent;
+    var net = res.after;
+    var ivaV = res.ivaV, ivaC = res.ivaC;
     document.getElementById('sum-iva-v').textContent = formatCLP(ivaV);
     document.getElementById('sum-iva-c').textContent = formatCLP(ivaC);
     var dueEl = document.getElementById('sum-iva');
@@ -3661,6 +3758,7 @@ cerravolt@gmail.com`;
     var netV = sumBy(sales,'net'), ivaV = sumBy(sales,'iva'), totV = sumBy(sales,'total');
     var netC = sumBy(purch,'net'), ivaC = sumBy(purch,'iva'), totC = sumBy(purch,'gross');
     var due = ivaV - ivaC;
+    html += resultBlockHtml(prefix);
     html += '<div class="fin-section">' +
       '<h3>Cuadre de IVA de '+monthLabel(prefix)+'</h3>' +
       '<div class="fin-note">Las ventas se asignan al mes de la <b>fecha de factura</b> y las compras al mes de la <b>fecha de compra</b>. Este cuadre no depende del filtro "Mostrar".</div>' +
@@ -3684,11 +3782,9 @@ cerravolt@gmail.com`;
         : '<div class="fin-note">No hay facturas emitidas en este mes.</div>') +
 
       '<h4>Compras y gastos del mes (IVA crédito)</h4>' +
-      (purch.length ? '<div class="pay-table-wrap"><table class="pay-table"><thead><tr><th>Fecha compra</th><th>Servicio</th><th>Detalle</th><th>Neto</th><th>IVA</th><th>Total pagado</th></tr></thead><tbody>' +
+      (purch.length ? '<div class="pay-table-wrap"><table class="pay-table"><thead><tr><th>Fecha compra</th><th>Origen</th><th>Detalle</th><th>Neto</th><th>IVA</th><th>Total pagado</th></tr></thead><tbody>' +
         purch.map(function(r){
-          return '<tr class="fin-row" data-id="'+r.id+'"><td>'+fmtShortDate(r.when)+'</td>' +
-            '<td>'+escapeHtml(r.s.clientName||'')+(r.s.trackingCode?' <span class="mono" style="color:var(--ink-faint)">'+escapeHtml(r.s.trackingCode)+'</span>':'')+'</td>' +
-            '<td>'+escapeHtml(r.e.desc||'')+(r.e.qty>1?' <span class="fin-exp">('+r.e.qty+' × '+formatCLP(r.e.price)+')</span>':'')+(r.e.iva===true?'':' <span class="fin-exp">sin IVA</span>')+'</td>' +
+          return '<tr class="fin-row" '+r.attr+'><td>'+fmtShortDate(r.when)+'</td><td>'+r.labelHtml+'</td><td>'+r.descHtml+'</td>' +
             '<td class="mono">'+formatCLP(r.net)+'</td><td class="mono">'+formatCLP(r.iva)+'</td><td class="mono">'+formatCLP(r.gross)+'</td></tr>';
         }).join('') +
         '</tbody><tfoot><tr><td></td><td></td><td><b>Total compras</b></td><td class="mono"><b>'+formatCLP(netC)+'</b></td><td class="mono"><b>'+formatCLP(ivaC)+'</b></td><td class="mono"><b>'+formatCLP(totC)+'</b></td></tr></tfoot></table></div>'
@@ -3700,7 +3796,11 @@ cerravolt@gmail.com`;
 
     box.innerHTML = html;
     box.querySelectorAll('.fin-row').forEach(function(tr){
-      tr.addEventListener('click', function(){ openDetail(tr.getAttribute('data-id')); });
+      tr.addEventListener('click', function(){
+        var pid = tr.getAttribute('data-purchase');
+        if(pid){ if(state.purchases.has(pid)) openPurchaseForm(Object.assign({ id: pid }, state.purchases.get(pid))); }
+        else openDetail(tr.getAttribute('data-id'));
+      });
     });
 
     var csvServ = document.getElementById('btn-export-fin');
@@ -3722,7 +3822,7 @@ cerravolt@gmail.com`;
       sales.forEach(function(r){ rows.push([r.when, r.s.invoiceNumber||'', r.s.clientName||'', r.s.description||'', r.net, r.iva, r.total]); });
       rows.push(['','','','Total ventas', netV, ivaV, totV], [],
         ['COMPRAS Y GASTOS'], ['Fecha compra','Cliente','N° de seguimiento','Detalle','Neto','IVA','Total pagado']);
-      purch.forEach(function(r){ rows.push([r.when, r.s.clientName||'', r.s.trackingCode||'', r.e.desc||'', r.net, r.iva, r.gross]); });
+      purch.forEach(function(r){ rows.push([r.when, r.labelText, r.trackingText, r.descText, r.net, r.iva, r.gross]); });
       rows.push(['','','','Total compras', netC, ivaC, totC], [],
         ['RESUMEN'], ['IVA ventas (débito)', ivaV], ['IVA compras (crédito)', ivaC],
         [due < 0 ? 'Remanente de IVA a favor' : 'IVA a pagar', Math.abs(due)],
@@ -3734,6 +3834,174 @@ cerravolt@gmail.com`;
     document.getElementById(id).addEventListener('change', renderFinanzasTab);
   });
 
+  /* ---------------- compras y gastos generales ---------------- */
+  var PURCHASE_CATS = ['Materiales','Herramientas','Combustible','Arriendo','Sueldos y honorarios','Servicios básicos','Publicidad','Vehículo','Otros'];
+  function purchaseCategories(){
+    var set = new Set(PURCHASE_CATS);
+    state.purchases.forEach(function(p){ if(p.category) set.add(p.category); });
+    return Array.from(set).sort(function(a,b){ return a.localeCompare(b, 'es'); });
+  }
+
+  function openPurchaseForm(existing){
+    var isEdit = !!existing;
+    var data = existing || { date: isoFromDate(new Date()), desc:'', category:'', supplier:'', docNumber:'', net:'', iva:true };
+    var html =
+      '<div class="modal-head"><h2>'+(isEdit?'Editar compra o gasto':'Nueva compra o gasto')+'</h2><button class="icon-btn" id="m-close">✕</button></div>' +
+      '<div class="modal-body">' +
+        '<div class="field-row">' +
+          '<div class="field"><label>Fecha de compra</label><input type="date" id="p-date" value="'+escapeHtml(data.date)+'"></div>' +
+          '<div class="field"><label>Valor neto (CLP)</label><input type="number" id="p-net" min="0" step="1" value="'+escapeHtml(data.net)+'" placeholder="0"></div>' +
+        '</div>' +
+        '<div class="field"><label>Descripción</label><input type="text" id="p-desc" value="'+escapeHtml(data.desc)+'" placeholder="Ej: Taladro, arriendo de bodega, bencina…"></div>' +
+        '<div class="field-row">' +
+          '<div class="field"><label>Categoría</label><input type="text" id="p-cat" list="dl-cats" value="'+escapeHtml(data.category)+'" placeholder="Elige o escribe una nueva">' +
+            '<datalist id="dl-cats">'+purchaseCategories().map(function(c){ return '<option value="'+escapeHtml(c)+'">'; }).join('')+'</datalist></div>' +
+          '<div class="field"><label>Proveedor (opcional)</label><input type="text" id="p-supplier" value="'+escapeHtml(data.supplier)+'"></div>' +
+        '</div>' +
+        '<div class="field-row">' +
+          '<div class="field"><label>N° de factura o boleta (opcional)</label><input type="text" id="p-doc" value="'+escapeHtml(data.docNumber)+'"></div>' +
+          '<div class="field"><label>IVA</label><label class="inv-check" style="padding:9px 0;"><input type="checkbox" id="p-iva"'+(data.iva===false?'':' checked')+'> Con IVA ('+IVA_PCT+'%)</label></div>' +
+        '</div>' +
+        '<div class="inv-calc" id="p-calc"></div>' +
+        '<div class="form-error" id="p-error">Completa fecha, descripción y un valor neto mayor a 0.</div>' +
+        '<div id="m-confirm-slot"></div>' +
+        '<div class="modal-actions">' +
+          (isEdit ? '<button class="btn btn-danger" id="m-delete">Eliminar</button>' : '<button class="btn btn-ghost" id="m-cancel">Cancelar</button>') +
+          '<button class="btn btn-primary" id="m-save">'+(isEdit?'Guardar cambios':'Guardar')+'</button>' +
+        '</div>' +
+      '</div>';
+    openModal(html);
+    document.getElementById('m-close').onclick = closeModal;
+    if(!isEdit) document.getElementById('m-cancel').onclick = closeModal;
+
+    function paintCalc(){
+      var pp = purchaseParts({ net: document.getElementById('p-net').value, iva: document.getElementById('p-iva').checked });
+      document.getElementById('p-calc').innerHTML =
+        '<span>Neto <b class="mono">'+formatCLP(pp.net)+'</b></span>' +
+        '<span>IVA ('+IVA_PCT+'%) <b class="mono">'+formatCLP(pp.iva)+'</b></span>' +
+        '<span>Total pagado <b class="mono">'+formatCLP(pp.gross)+'</b></span>';
+    }
+    paintCalc();
+    document.getElementById('p-net').addEventListener('input', paintCalc);
+    document.getElementById('p-iva').addEventListener('change', paintCalc);
+
+    if(isEdit){
+      document.getElementById('m-delete').onclick = function(){
+        document.getElementById('m-confirm-slot').innerHTML =
+          '<div class="confirm-box"><span>¿Eliminar esta compra? No se puede deshacer.</span>' +
+          '<span style="display:flex; gap:8px;"><button class="btn btn-ghost btn-sm" id="m-cancel-del">Cancelar</button><button class="btn btn-danger btn-sm" id="m-confirm-del">Eliminar</button></span></div>';
+        document.getElementById('m-cancel-del').onclick = function(){ document.getElementById('m-confirm-slot').innerHTML = ''; };
+        document.getElementById('m-confirm-del').onclick = async function(){
+          try{ await state.db.collection('purchases').doc(existing.id).delete(); closeModal(); }
+          catch(err){ console.error(err); alert('No se pudo eliminar la compra. Intenta de nuevo.'); }
+        };
+      };
+    }
+
+    document.getElementById('m-save').onclick = async function(){
+      var payload = {
+        date: document.getElementById('p-date').value,
+        desc: document.getElementById('p-desc').value.trim(),
+        category: document.getElementById('p-cat').value.trim(),
+        supplier: document.getElementById('p-supplier').value.trim(),
+        docNumber: document.getElementById('p-doc').value.trim(),
+        net: Number(document.getElementById('p-net').value) || 0,
+        iva: document.getElementById('p-iva').checked,
+        updatedAt: new Date().toISOString()
+      };
+      var errEl = document.getElementById('p-error');
+      if(!payload.date || !payload.desc || !(payload.net > 0)){ errEl.textContent = 'Completa fecha, descripción y un valor neto mayor a 0.'; errEl.classList.add('show'); return; }
+      if(!state.db){ errEl.textContent = 'Sin conexión a la base de datos.'; errEl.classList.add('show'); return; }
+      var btn = document.getElementById('m-save');
+      btn.disabled = true; btn.textContent = 'Guardando…';
+      try{
+        if(isEdit){
+          await state.db.collection('purchases').doc(existing.id).update(payload);
+        } else {
+          payload.createdAt = payload.updatedAt;
+          await state.db.collection('purchases').add(payload);
+        }
+        document.getElementById('buy-month').value = payload.date.slice(0,7);
+        closeModal();
+        renderComprasTab();
+      }catch(err){
+        console.error(err);
+        errEl.textContent = 'No se pudo guardar. Intenta de nuevo.';
+        errEl.classList.add('show');
+        btn.disabled = false; btn.textContent = isEdit ? 'Guardar cambios' : 'Guardar';
+      }
+    };
+  }
+
+  function renderComprasTab(){
+    var monthEl = document.getElementById('buy-month');
+    if(!monthEl.value) monthEl.value = state.calYear + '-' + pad2(state.calMonth+1);
+    var prefix = monthEl.value;
+    var catSel = document.getElementById('buy-cat'), curCat = catSel.value, cats = purchaseCategories();
+    catSel.innerHTML = '<option value="">Todas las categorías</option>' + cats.map(function(c){ return '<option value="'+escapeHtml(c)+'">'+escapeHtml(c)+'</option>'; }).join('');
+    if(cats.indexOf(curCat) > -1) catSel.value = curCat;
+    var cat = catSel.value;
+    var box = document.getElementById('buy-results');
+
+    var list = [];
+    state.purchases.forEach(function(p, id){
+      if(ymOf(p.date) === prefix && (!cat || p.category === cat)) list.push(Object.assign({ id: id }, p, purchaseParts(p)));
+    });
+    list.sort(function(a,b){ return a.date.localeCompare(b.date); });
+    var net = sumBy(list,'net'), iva = sumBy(list,'iva'), gross = sumBy(list,'gross');
+
+    var html = '<div class="pay-summary"><h3 style="margin:0; font-size:16px; font-family:var(--font-display);">Compras y gastos de '+monthLabel(prefix)+'</h3>';
+    if(list.length === 0){
+      html += '<div class="empty-state"><div class="glyph">🧾</div><div class="msg">No hay compras ni gastos registrados en este mes.</div></div></div>';
+    } else {
+      var byCat = {};
+      list.forEach(function(p){ var k = p.category || 'Sin categoría'; byCat[k] = (byCat[k]||0) + p.gross; });
+      var catRows = Object.keys(byCat).sort(function(a,b){ return byCat[b] - byCat[a]; });
+      var maxCat = byCat[catRows[0]] || 1;
+      html +=
+        '<div class="pay-stat-grid">' +
+          '<div class="pay-stat"><div class="l">Compras netas</div><div class="v">'+formatCLP(net)+'</div></div>' +
+          '<div class="pay-stat"><div class="l">IVA compras (crédito)</div><div class="v">'+formatCLP(iva)+'</div></div>' +
+          '<div class="pay-stat"><div class="l">Total pagado</div><div class="v">'+formatCLP(gross)+'</div></div>' +
+        '</div>' +
+        '<div class="pay-table-wrap"><table class="pay-table"><thead><tr><th>Fecha</th><th>Descripción</th><th>Categoría</th><th>Neto</th><th>IVA</th><th>Total pagado</th></tr></thead><tbody>' +
+        list.map(function(p){
+          return '<tr class="fin-row" data-purchase="'+p.id+'"><td>'+fmtShortDate(p.date)+'</td>' +
+            '<td>'+escapeHtml(p.desc||'')+(p.supplier?'<div class="fin-exp">'+escapeHtml(p.supplier)+'</div>':'')+(p.docNumber?'<div class="fin-exp">N° '+escapeHtml(p.docNumber)+'</div>':'')+'</td>' +
+            '<td>'+escapeHtml(p.category||'—')+'</td>' +
+            '<td class="mono">'+formatCLP(p.net)+'</td><td class="mono">'+(p.iva?formatCLP(p.iva):'—')+'</td><td class="mono">'+formatCLP(p.gross)+'</td></tr>';
+        }).join('') +
+        '</tbody><tfoot><tr><td></td><td><b>Total</b></td><td></td><td class="mono"><b>'+formatCLP(net)+'</b></td><td class="mono"><b>'+formatCLP(iva)+'</b></td><td class="mono"><b>'+formatCLP(gross)+'</b></td></tr></tfoot></table></div>' +
+        '<h4 style="margin:6px 0 0; font-size:13px; color:var(--ink-soft);">Por categoría</h4>' +
+        '<div class="cat-bars">' + catRows.map(function(k){
+          return '<div class="cat-bar"><span>'+escapeHtml(k)+'</span><span class="bar"><i style="width:'+Math.max(3, Math.round(byCat[k]/maxCat*100))+'%"></i></span><span class="mono">'+formatCLP(byCat[k])+'</span></div>';
+        }).join('') + '</div>' +
+        '<button class="btn btn-ghost btn-sm" id="btn-export-buy">⬇ CSV de compras</button>' +
+        '<div class="wa-hint" id="buy-hint" hidden></div></div>';
+    }
+    html += '<div class="fin-note" style="margin-top:6px;">Aquí van las compras y gastos generales del negocio. Los gastos de cada servicio se registran dentro del servicio y también cuentan en el resultado de abajo.</div>';
+    html += resultBlockHtml(prefix);
+    box.innerHTML = html;
+
+    box.querySelectorAll('.fin-row').forEach(function(tr){
+      tr.addEventListener('click', function(){
+        var pid = tr.getAttribute('data-purchase');
+        if(state.purchases.has(pid)) openPurchaseForm(Object.assign({ id: pid }, state.purchases.get(pid)));
+      });
+    });
+    var csvBtn = document.getElementById('btn-export-buy');
+    if(csvBtn) csvBtn.onclick = function(){
+      var rows = [['Fecha','Descripción','Categoría','Proveedor','N° documento','Neto','IVA','Total pagado']];
+      list.forEach(function(p){ rows.push([p.date, p.desc||'', p.category||'', p.supplier||'', p.docNumber||'', p.net, p.iva, p.gross]); });
+      rows.push(['','Total','','','', net, iva, gross]);
+      saveCsv('compras-cerravolt-'+prefix+'.csv', rowsToCsv(rows), csvBtn, document.getElementById('buy-hint'));
+    };
+  }
+  document.getElementById('btn-new-purchase').onclick = function(){ openPurchaseForm(null); };
+  ['buy-month','buy-cat'].forEach(function(id){
+    document.getElementById(id).addEventListener('change', renderComprasTab);
+  });
+
   /* ---------------- tabs ---------------- */
   function switchTab(tab){
     state.activeTab = tab;
@@ -3742,17 +4010,20 @@ cerravolt@gmail.com`;
     document.getElementById('tab-tecnicos').classList.toggle('active', tab==='tecnicos');
     document.getElementById('tab-pagos').classList.toggle('active', tab==='pagos');
     document.getElementById('tab-finanzas').classList.toggle('active', tab==='finanzas');
+    document.getElementById('tab-compras').classList.toggle('active', tab==='compras');
     document.getElementById('view-agenda').hidden = tab!=='agenda';
     document.getElementById('view-clientes').hidden = tab!=='clientes';
     document.getElementById('view-tecnicos').hidden = tab!=='tecnicos';
     document.getElementById('view-pagos').hidden = tab!=='pagos';
     document.getElementById('view-finanzas').hidden = tab!=='finanzas';
+    document.getElementById('view-compras').hidden = tab!=='compras';
   }
   document.getElementById('tab-agenda').onclick = function(){ switchTab('agenda'); };
   document.getElementById('tab-clientes').onclick = function(){ switchTab('clientes'); renderClientsTab(); };
   document.getElementById('tab-tecnicos').onclick = function(){ switchTab('tecnicos'); renderTechniciansTab(); };
   document.getElementById('tab-pagos').onclick = function(){ switchTab('pagos'); populatePayTechOptions(); renderPagosTab(); };
   document.getElementById('tab-finanzas').onclick = function(){ switchTab('finanzas'); renderFinanzasTab(); };
+  document.getElementById('tab-compras').onclick = function(){ switchTab('compras'); renderComprasTab(); };
   document.getElementById('client-search').oninput = function(){ renderClientsTab(); };
 
   /* ---------------- CSV helpers (shared) ---------------- */
@@ -4517,6 +4788,7 @@ cerravolt@gmail.com`;
     if(state.activeTab==='tecnicos') renderTechniciansTab();
     if(state.activeTab==='pagos'){ populatePayTechOptions(); renderPagosTab(); }
     if(state.activeTab==='finanzas') renderFinanzasTab();
+    if(state.activeTab==='compras') renderComprasTab();
   }
 
   /* ---------------- one-time import from the old standalone agenda ---------------- */
@@ -4605,7 +4877,7 @@ cerravolt@gmail.com`;
   document.getElementById('btn-back').onclick = function(){ if(window.CVApp) window.CVApp.show('cotizador'); };
 
   function resetState(){
-    state.services = new Map(); state.clients = new Map(); state.technicians = new Map();
+    state.services = new Map(); state.clients = new Map(); state.technicians = new Map(); state.purchases = new Map();
     state.activeClientId = null; state.activeTechId = null;
   }
   window.CVAgenda = {
