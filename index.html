@@ -881,6 +881,15 @@
   #agendaRoot .fin-note{ font-size:12px; color:var(--ink-faint); line-height:1.5; }
   #agendaRoot .exp-meta select{ border:1px solid var(--border); background:var(--surface-2); color:var(--ink); border-radius:var(--radius-sm); padding:7px 8px; font:inherit; font-size:12.5px; }
   #agendaRoot #fin-results > .fin-section:first-child{ margin-top:0; padding-top:0; border-top:0; }
+  #agendaRoot .cmp-box{ border:1px solid var(--border); border-left:4px solid var(--accent); border-radius:var(--radius-md); padding:14px 16px; background:var(--surface-2); display:flex; flex-direction:column; gap:8px; }
+  #agendaRoot .cmp-box.up{ border-left-color:var(--green); }
+  #agendaRoot .cmp-box.down{ border-left-color:var(--danger); }
+  #agendaRoot .cmp-box .main{ font-size:15px; font-weight:600; line-height:1.5; }
+  #agendaRoot .cmp-box ul{ margin:0; padding-left:18px; font-size:13px; color:var(--ink-soft); line-height:1.7; }
+  #agendaRoot .cmp-warn{ font-size:12.5px; color:var(--amber-ink); background:var(--amber-soft); border-radius:var(--radius-sm); padding:8px 10px; }
+  #agendaRoot .cmp-good{ color:var(--green-ink); font-weight:600; }
+  #agendaRoot .cmp-bad{ color:var(--danger); font-weight:600; }
+  #agendaRoot .cat-bar.b .bar i{ background:var(--amber); }
   #agendaRoot .res-table td:last-child{ text-align:right; white-space:nowrap; }
   #agendaRoot .res-sub td{ border-top:2px solid var(--border); font-weight:700; }
   #agendaRoot .res-total td{ border-top:2px solid var(--ink); font-weight:700; font-size:15px; }
@@ -1207,6 +1216,7 @@ cerravolt@gmail.com</textarea>
       <p style="font-size:11.5px; color:var(--steel-500); line-height:1.6; margin:0 0 12px;">
         Calcula el costo de un vidrio según sus medidas y agrégalo directo como ítem de la cotización.
       </p>
+      <div class="field"><label>Nombre del ítem (opcional)</label><input id="calcName" type="text" maxlength="80" placeholder="Ej: Ventana del living, Puerta de baño"></div>
       <div class="field"><label>Tipo de vidrio</label><select id="calcGlassType" class="select-field" onchange="calcGlass()"></select></div>
       <div class="row2">
         <div class="field"><label>Ancho (mm)</label><input id="calcW" type="number" min="0" step="1" placeholder="0" oninput="calcGlass()"></div>
@@ -1274,6 +1284,7 @@ cerravolt@gmail.com</textarea>
       <button class="tab" data-tab="pagos" id="tab-pagos">Pagos</button>
       <button class="tab" data-tab="compras" id="tab-compras">Compras</button>
       <button class="tab" data-tab="finanzas" id="tab-finanzas">Finanzas</button>
+      <button class="tab" data-tab="comparar" id="tab-comparar">Comparar</button>
     </nav>
 
     <section id="view-agenda">
@@ -1385,6 +1396,18 @@ cerravolt@gmail.com</textarea>
           </select></div>
         </div>
         <div class="pagos-results" id="fin-results"></div>
+      </div>
+    </section>
+
+    <section id="view-comparar" hidden>
+      <div class="pagos-wrap">
+        <div class="pagos-filters">
+          <div class="field"><label>Mes a analizar</label><input type="month" id="cmp-a"></div>
+          <div class="field"><label>Comparar con</label><input type="month" id="cmp-b"></div>
+          <button class="btn btn-ghost btn-sm btn-block" id="cmp-prev">↩ Mes anterior</button>
+          <button class="btn btn-ghost btn-sm btn-block" id="cmp-year">↩ Mismo mes del año pasado</button>
+        </div>
+        <div class="pagos-results" id="cmp-results"></div>
       </div>
     </section>
   </main>
@@ -1833,7 +1856,11 @@ cerravolt@gmail.com</textarea>
     if(wMM <= 0 || hMM <= 0){ alert('Ingresa el ancho y el alto del vidrio.'); return; }
     const areaM2 = (wMM/1000) * (hMM/1000);
     const unitPrice = Math.round(areaM2 * (g.pricePerM2 || 0));
-    const desc = `${g.name} ${wMM}x${hMM}mm (${areaM2.toFixed(2)} m²)`;
+    // Descripción del ítem: nombre + tipo de vidrio + medidas exactas tal como se ingresaron.
+    const fmtMeasure = n => String(n).replace('.', ',');
+    const areaTxt = areaM2.toLocaleString('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 3 });
+    const itemName = document.getElementById('calcName').value.trim();
+    const desc = (itemName ? itemName + ' — ' : '') + g.name + ' ' + fmtMeasure(wMM) + ' × ' + fmtMeasure(hMM) + ' mm (' + areaTxt + ' m²)';
     if(items.length === 1 && !items[0].desc && !items[0].price){
       items[0] = { desc, qty, price: unitPrice };
     } else {
@@ -1841,6 +1868,7 @@ cerravolt@gmail.com</textarea>
     }
     renderEdit();
     update();
+    document.getElementById('calcName').value = '';
     document.getElementById('calcW').value = '';
     document.getElementById('calcH').value = '';
     document.getElementById('calcQty').value = '1';
@@ -4155,6 +4183,120 @@ cerravolt@gmail.com`;
   }
   document.getElementById('btn-new-advance').onclick = function(){ openAdvanceForm(null, document.getElementById('pay-tech').value); };
 
+  /* ---------------- comparar meses ---------------- */
+  var cmpMode = 'prev';   // 'prev' | 'year' | 'custom': cómo se elige el mes contra el que se compara
+
+  function monthKeyShift(prefix, delta){
+    var p = prefix.split('-'), d = new Date(Number(p[0]), Number(p[1]) - 1 + delta, 1);
+    return d.getFullYear() + '-' + pad2(d.getMonth() + 1);
+  }
+  function monthStats(prefix){
+    var r = monthResult(prefix), count = 0;
+    state.services.forEach(function(v){ if(ymOf(v.date) === prefix) count++; });
+    return { count: count, income: r.income, soldNet: r.soldNet, spent: r.svcSpent + r.genSpent,
+             commission: r.commission, profit: r.profit, avg: count ? Math.round(r.income / count) : 0 };
+  }
+  function pctChange(a, b){ return b ? (a - b) / Math.abs(b) * 100 : null; }
+  function fmtPct(p){ return (Math.round(Math.abs(p) * 10) / 10).toLocaleString('es-CL') + '%'; }
+  function fmtSigned(n){ return (n > 0 ? '+' : n < 0 ? '-' : '') + formatCLP(Math.abs(n)); }
+  // Aviso si un mes todavía no termina (la comparación sería parcial)
+  function partialMonthNote(prefix){
+    var now = new Date(), cur = now.getFullYear() + '-' + pad2(now.getMonth() + 1);
+    if(prefix !== cur) return '';
+    var days = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    return now.getDate() < days ? monthLabel(prefix) + ' aún no termina (va el día ' + now.getDate() + ' de ' + days + ')' : '';
+  }
+
+  function renderCompararTab(){
+    var aEl = document.getElementById('cmp-a'), bEl = document.getElementById('cmp-b');
+    if(!aEl.value) aEl.value = state.calYear + '-' + pad2(state.calMonth + 1);
+    var a = aEl.value;
+    if(cmpMode === 'prev') bEl.value = monthKeyShift(a, -1);
+    else if(cmpMode === 'year') bEl.value = monthKeyShift(a, -12);
+    else if(!bEl.value) bEl.value = monthKeyShift(a, -1);
+    var b = bEl.value;
+    var box = document.getElementById('cmp-results');
+    var A = monthStats(a), B = monthStats(b);
+    var nameA = monthLabel(a), nameB = monthLabel(b);
+
+    /* ---- conclusión principal: ventas ---- */
+    var ch = pctChange(A.income, B.income), main, dir = '';
+    if(a === b) main = 'Elige dos meses distintos para compararlos.';
+    else if(!A.income && !B.income) main = 'No hay ventas registradas ni en ' + nameA + ' ni en ' + nameB + '.';
+    else if(!B.income) main = 'En ' + nameA + ' se vendieron ' + formatCLP(A.income) + ' y en ' + nameB + ' no hubo ventas, así que no se puede calcular un porcentaje de variación.';
+    else if(Math.abs(ch) < 0.05) main = 'Las ventas de ' + nameA + ' fueron prácticamente iguales a las de ' + nameB + ' (' + formatCLP(A.income) + ').';
+    else {
+      dir = ch > 0 ? 'up' : 'down';
+      main = 'En ' + nameA + ' se vendió un ' + fmtPct(ch) + (ch > 0 ? ' más' : ' menos') + ' que en ' + nameB + ': ' +
+        formatCLP(A.income) + ' contra ' + formatCLP(B.income) + ' (' + fmtSigned(A.income - B.income) + ').';
+    }
+
+    /* ---- detalle de la conclusión ---- */
+    var notes = [];
+    var cn = pctChange(A.soldNet, B.soldNet);
+    if(B.soldNet && Math.abs(cn) >= 0.05) notes.push('El vendido líquido (sin IVA) ' + (cn > 0 ? 'subió' : 'bajó') + ' ' + fmtPct(cn) + ': ' + formatCLP(A.soldNet) + ' contra ' + formatCLP(B.soldNet) + '.');
+    if(A.count !== B.count) notes.push('Se hicieron ' + A.count + ' servicios contra ' + B.count + ' (' + (A.count > B.count ? '+' : '-') + Math.abs(A.count - B.count) + ').');
+    else if(A.count) notes.push('Se hicieron ' + A.count + ' servicios en cada mes.');
+    var cav = pctChange(A.avg, B.avg);
+    if(B.avg && A.avg && Math.abs(cav) >= 0.05) notes.push('El ticket promedio ' + (cav > 0 ? 'subió' : 'bajó') + ' ' + fmtPct(cav) + ': ' + formatCLP(A.avg) + ' contra ' + formatCLP(B.avg) + '.');
+    if(A.profit !== B.profit){
+      var cp = pctChange(A.profit, B.profit);
+      notes.push('La ganancia líquida ' + (A.profit > B.profit ? 'subió' : 'bajó') + ' de ' + formatNet(B.profit) + ' a ' + formatNet(A.profit) + (cp != null ? ' (' + fmtPct(cp) + ')' : '') + '.');
+    }
+    var cg = pctChange(A.spent, B.spent);
+    if(B.spent && Math.abs(cg) >= 0.05) notes.push('Los gastos y compras ' + (cg > 0 ? 'aumentaron' : 'bajaron') + ' ' + fmtPct(cg) + ': ' + formatCLP(A.spent) + ' contra ' + formatCLP(B.spent) + '.');
+    var warn = [partialMonthNote(a), partialMonthNote(b)].filter(Boolean);
+
+    /* ---- tabla ---- */
+    var metrics = [
+      { key:'income',     label:'Ventas (con IVA)',          money:true,  goodUp:true },
+      { key:'soldNet',    label:'Vendido líquido (sin IVA)', money:true,  goodUp:true },
+      { key:'count',      label:'Servicios',                 money:false, goodUp:true },
+      { key:'avg',        label:'Ticket promedio',           money:true,  goodUp:true },
+      { key:'spent',      label:'Gastos y compras',          money:true,  goodUp:false },
+      { key:'commission', label:'Comisiones de técnicos',    money:true,  goodUp:false },
+      { key:'profit',     label:'Ganancia líquida',          money:true,  goodUp:true }
+    ];
+    var fmt = function(m, v){ return m.money ? formatNet(v) : String(v); };
+    var rows = metrics.map(function(m){
+      var va = A[m.key], vb = B[m.key], diff = va - vb, c = pctChange(va, vb), cell;
+      if(diff === 0) cell = '<span class="fin-exp">sin cambio</span>';
+      else if(c == null) cell = '<span class="fin-exp">sin base de comparación</span>';
+      else {
+        var good = (diff > 0) === m.goodUp;
+        cell = '<span class="' + (good ? 'cmp-good' : 'cmp-bad') + '">' + (diff > 0 ? '▲ ' : '▼ ') + fmtPct(c) + '</span>';
+      }
+      return '<tr><td>' + m.label + '</td><td class="mono">' + fmt(m, va) + '</td><td class="mono">' + fmt(m, vb) + '</td>' +
+        '<td class="mono">' + (m.money ? fmtSigned(diff) : (diff > 0 ? '+' : '') + diff) + '</td><td>' + cell + '</td></tr>';
+    }).join('');
+
+    /* ---- evolución de ventas: 6 meses hasta el mes analizado ---- */
+    var hist = [], maxInc = 1;
+    for(var i = 5; i >= 0; i--){
+      var k = monthKeyShift(a, -i), st = monthStats(k);
+      hist.push({ key: k, income: st.income });
+      if(st.income > maxInc) maxInc = st.income;
+    }
+    var histHtml = '<div class="cat-bars">' + hist.map(function(h){
+      return '<div class="cat-bar' + (h.key === b ? ' b' : '') + '"><span>' + escapeHtml(monthLabel(h.key)) + (h.key === a ? ' ◀' : '') + '</span>' +
+        '<span class="bar"><i style="width:' + (h.income ? Math.max(3, Math.round(h.income / maxInc * 100)) : 0) + '%"></i></span><span class="mono">' + formatCLP(h.income) + '</span></div>';
+    }).join('') + '</div>';
+
+    box.innerHTML = '<div class="pay-summary">' +
+      '<h3 style="margin:0; font-size:16px; font-family:var(--font-display);">' + escapeHtml(nameA) + ' contra ' + escapeHtml(nameB) + '</h3>' +
+      '<div class="cmp-box ' + dir + '"><div class="main">' + escapeHtml(main) + '</div>' +
+        (notes.length ? '<ul>' + notes.map(function(n){ return '<li>' + escapeHtml(n) + '</li>'; }).join('') + '</ul>' : '') + '</div>' +
+      warn.map(function(w){ return '<div class="cmp-warn">⚠️ ' + escapeHtml(w) + ': la comparación es parcial.</div>'; }).join('') +
+      '<div class="pay-table-wrap"><table class="pay-table"><thead><tr><th></th><th>' + escapeHtml(nameA) + '</th><th>' + escapeHtml(nameB) + '</th><th>Diferencia</th><th>Variación</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '<h4 style="margin:10px 0 0; font-size:13px; color:var(--ink-soft);">Ventas de los últimos 6 meses <span class="fin-exp">◀ mes analizado · en naranja, el mes comparado</span></h4>' + histHtml +
+      '<div class="fin-note">Las ventas se cuentan por la fecha del servicio. Ventas = monto de los servicios (con IVA cuando se facturó con IVA aparte); vendido líquido = sin IVA; la ganancia líquida descuenta compras y gastos netos y comisiones de técnicos.</div>' +
+    '</div>';
+  }
+  document.getElementById('cmp-a').addEventListener('change', renderCompararTab);
+  document.getElementById('cmp-b').addEventListener('change', function(){ cmpMode = 'custom'; renderCompararTab(); });
+  document.getElementById('cmp-prev').onclick = function(){ cmpMode = 'prev'; renderCompararTab(); };
+  document.getElementById('cmp-year').onclick = function(){ cmpMode = 'year'; renderCompararTab(); };
+
   /* ---------------- tabs ---------------- */
   function switchTab(tab){
     state.activeTab = tab;
@@ -4164,12 +4306,14 @@ cerravolt@gmail.com`;
     document.getElementById('tab-pagos').classList.toggle('active', tab==='pagos');
     document.getElementById('tab-finanzas').classList.toggle('active', tab==='finanzas');
     document.getElementById('tab-compras').classList.toggle('active', tab==='compras');
+    document.getElementById('tab-comparar').classList.toggle('active', tab==='comparar');
     document.getElementById('view-agenda').hidden = tab!=='agenda';
     document.getElementById('view-clientes').hidden = tab!=='clientes';
     document.getElementById('view-tecnicos').hidden = tab!=='tecnicos';
     document.getElementById('view-pagos').hidden = tab!=='pagos';
     document.getElementById('view-finanzas').hidden = tab!=='finanzas';
     document.getElementById('view-compras').hidden = tab!=='compras';
+    document.getElementById('view-comparar').hidden = tab!=='comparar';
   }
   document.getElementById('tab-agenda').onclick = function(){ switchTab('agenda'); };
   document.getElementById('tab-clientes').onclick = function(){ switchTab('clientes'); renderClientsTab(); };
@@ -4177,6 +4321,7 @@ cerravolt@gmail.com`;
   document.getElementById('tab-pagos').onclick = function(){ switchTab('pagos'); populatePayTechOptions(); renderPagosTab(); };
   document.getElementById('tab-finanzas').onclick = function(){ switchTab('finanzas'); renderFinanzasTab(); };
   document.getElementById('tab-compras').onclick = function(){ switchTab('compras'); renderComprasTab(); };
+  document.getElementById('tab-comparar').onclick = function(){ switchTab('comparar'); renderCompararTab(); };
   document.getElementById('client-search').oninput = function(){ renderClientsTab(); };
 
   /* ---------------- CSV helpers (shared) ---------------- */
@@ -4975,6 +5120,7 @@ cerravolt@gmail.com`;
     if(state.activeTab==='pagos'){ populatePayTechOptions(); renderPagosTab(); }
     if(state.activeTab==='finanzas') renderFinanzasTab();
     if(state.activeTab==='compras') renderComprasTab();
+    if(state.activeTab==='comparar') renderCompararTab();
   }
 
   /* ---------------- one-time import from the old standalone agenda ---------------- */
