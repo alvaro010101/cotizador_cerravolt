@@ -1263,6 +1263,7 @@ cerravolt@gmail.com</textarea>
       <div class="side-summary-row"><span>Queda del mes (est.)</span><span class="v" id="sum-net">–</span></div>
       <div class="side-summary-row"><span>Vendido líquido (sin IVA)</span><span class="v" id="sum-sold">–</span></div>
       <div class="side-summary-row"><span>Ganancia líquida</span><span class="v" id="sum-profit">–</span></div>
+      <div class="side-summary-row"><span>↳ de ella, por cobrar</span><span class="v" id="sum-profit-pending">–</span></div>
       <div class="side-summary-row"><span>IVA ventas</span><span class="v" id="sum-iva-v">–</span></div>
       <div class="side-summary-row"><span>IVA compras</span><span class="v" id="sum-iva-c">–</span></div>
       <div class="side-summary-row"><span>IVA a pagar</span><span class="v amber" id="sum-iva">–</span></div>
@@ -3024,7 +3025,7 @@ cerravolt@gmail.com`;
   function monthResult(prefix){
     var pctByTech = {};
     state.technicians.forEach(function(t){ if(t.name) pctByTech[t.name] = Number(t.commissionPct)||0; });
-    var income = 0, paid = 0, pending = 0, commission = 0, soldNet = 0;
+    var income = 0, paid = 0, pending = 0, commission = 0, soldNet = 0, profitPending = 0;
     state.services.forEach(function(v){
       if(ymOf(v.date) !== prefix) return;
       var iv = ivaOf(v), total = iv ? iv.total : (Number(v.amount)||0);
@@ -3032,7 +3033,13 @@ cerravolt@gmail.com`;
       soldNet += serviceNet(v);
       if(v.paymentStatus === 'pagado') paid += total; else pending += total;
       var pct = pctByTech[v.technician] || 0;
-      if(pct) commission += Math.round(Math.max(0, (Number(v.amount)||0) - expensesTotal(v)) * pct / 100);
+      var svcCommission = pct ? Math.round(Math.max(0, (Number(v.amount)||0) - expensesTotal(v)) * pct / 100) : 0;
+      commission += svcCommission;
+      // Margen de un servicio aún no cobrado: su neto - sus gastos netos - su comisión
+      if(v.paymentStatus !== 'pagado'){
+        var expNet = (Array.isArray(v.expenses) ? v.expenses : []).reduce(function(a,e){ return a + expParts(e).net; }, 0);
+        profitPending += serviceNet(v) - expNet - svcCommission;
+      }
     });
     var purch = purchasesInMonth(prefix);
     var svcSpent = 0, genSpent = 0;
@@ -3043,7 +3050,8 @@ cerravolt@gmail.com`;
     var before = income - svcSpent - genSpent - commission;
     return { income:income, paid:paid, pending:pending, svcSpent:svcSpent, genSpent:genSpent, commission:commission,
              ivaV:ivaV, ivaC:ivaC, due:due, ivaPay:ivaPay, before:before, after:before - ivaPay,
-             soldNet:soldNet, purchNet:purchNet, profit: soldNet - purchNet - commission };
+             soldNet:soldNet, purchNet:purchNet, profit: soldNet - purchNet - commission,
+             profitPending: profitPending, profitCollected: (soldNet - purchNet - commission) - profitPending };
   }
   function resultBlockHtml(prefix){
     var r = monthResult(prefix);
@@ -3054,14 +3062,18 @@ cerravolt@gmail.com`;
         '<div class="pay-stat"><div class="l">Vendido (con IVA)</div><div class="v">'+formatCLP(r.income)+'</div></div>' +
         '<div class="pay-stat"><div class="l">Vendido líquido (sin IVA)</div><div class="v">'+formatCLP(r.soldNet)+'</div></div>' +
         '<div class="pay-stat"><div class="l">Comisiones de técnicos</div><div class="v">'+formatCLP(r.commission)+'</div></div>' +
-        '<div class="pay-stat"><div class="l">Ganancia líquida</div><div class="v '+neg(r.profit)+'">'+formatNet(r.profit)+'</div></div>' +
+        '<div class="pay-stat"><div class="l">Ganancia líquida (cobrada o no)</div><div class="v '+neg(r.profit)+'">'+formatNet(r.profit)+'</div></div>' +
+        '<div class="pay-stat"><div class="l">↳ ya cobrada</div><div class="v '+neg(r.profitCollected)+'">'+formatNet(r.profitCollected)+'</div></div>' +
+        '<div class="pay-stat"><div class="l">↳ por cobrar</div><div class="v">'+formatNet(r.profitPending)+'</div></div>' +
       '</div>' +
       '<h4>Ganancia líquida (sin IVA)</h4>' +
       '<div class="pay-table-wrap"><table class="pay-table res-table"><tbody>' +
         '<tr><td>Vendido líquido <span class="fin-exp">neto de los servicios del mes, sin IVA</span></td><td class="mono">'+formatCLP(r.soldNet)+'</td></tr>' +
         '<tr><td>− Compras y gastos <span class="fin-exp">netos, de servicios y generales</span></td><td class="mono">'+formatCLP(r.purchNet)+'</td></tr>' +
         '<tr><td>− Comisiones de técnicos <span class="fin-exp">calculadas sobre monto − gastos</span></td><td class="mono">'+formatCLP(r.commission)+'</td></tr>' +
-        '<tr class="res-total"><td>Ganancia líquida</td><td class="mono" style="color:'+(r.profit<0?'var(--danger)':'var(--green-ink)')+'">'+formatNet(r.profit)+'</td></tr>' +
+        '<tr class="res-total"><td>Ganancia líquida <span class="fin-exp">incluye los servicios aún no cobrados</span></td><td class="mono" style="color:'+(r.profit<0?'var(--danger)':'var(--green-ink)')+'">'+formatNet(r.profit)+'</td></tr>' +
+        '<tr><td>↳ de la cual ya cobrada <span class="fin-exp">lo cobrado menos todos los costos del mes</span></td><td class="mono">'+formatNet(r.profitCollected)+'</td></tr>' +
+        '<tr><td>↳ de la cual por cobrar <span class="fin-exp">margen de los servicios pendientes de cobro</span></td><td class="mono">'+formatNet(r.profitPending)+'</td></tr>' +
       '</tbody></table></div>' +
       '<h4>Caja (lo que queda en mano)</h4>' +
       '<div class="pay-table-wrap"><table class="pay-table res-table"><tbody>' +
@@ -3286,6 +3298,7 @@ cerravolt@gmail.com`;
     var profitEl = document.getElementById('sum-profit');
     profitEl.textContent = formatNet(res.profit);
     profitEl.className = 'v ' + (res.profit < 0 ? 'neg' : 'green');
+    document.getElementById('sum-profit-pending').textContent = formatNet(res.profitPending);
     spent = res.svcSpent + res.genSpent;
     var net = res.after;
     var ivaV = res.ivaV, ivaC = res.ivaC;
