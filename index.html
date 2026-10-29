@@ -960,13 +960,28 @@
   #agendaRoot .pay-stat .v.pos{ color:var(--green-ink); }
 
   /* ---------- Celular ---------- */
-  #iosPdfTip{
-    position:fixed; left:12px; right:12px; bottom:14px; z-index:200;
-    display:flex; align-items:flex-start; gap:10px; padding:12px 14px; border-radius:12px;
-    background:#0f3057; color:#eaf2fb; font-size:13px; line-height:1.5;
-    border:1px solid #2e9fe0; box-shadow:0 14px 34px -8px rgba(0,0,0,.6);
+  #pdfBusy, #pdfSheet{
+    position:fixed; inset:0; z-index:300; display:flex; justify-content:center;
+    background:rgba(5,10,20,.62); backdrop-filter:blur(3px);
   }
-  #iosPdfTip button{ background:none; border:none; color:#9fb6cf; font-size:16px; cursor:pointer; padding:0 4px; }
+  #pdfBusy{ align-items:center; }
+  #pdfSheet{ align-items:flex-end; }
+  .pdf-card{
+    width:100%; max-width:440px; background:#0f1b2d; color:#eaf2fb; border:1px solid #1f3a5c; border-radius:18px 18px 0 0;
+    padding:20px 18px calc(18px + env(safe-area-inset-bottom)); display:flex; flex-direction:column; gap:10px; text-align:center;
+    box-shadow:0 -14px 40px -10px rgba(0,0,0,.6);
+  }
+  #pdfBusy .pdf-card{ border-radius:18px; padding:26px 22px; width:auto; min-width:230px; align-items:center; margin:0 16px; }
+  .pdf-title{ font-family:var(--display); font-weight:700; font-size:18px; }
+  .pdf-name{ font-family:var(--mono); font-size:12px; color:#9fb6cf; word-break:break-all; }
+  .pdf-btn{
+    display:flex; align-items:center; justify-content:center; min-height:50px; border-radius:14px; border:1px solid #2a4a73;
+    background:#13294a; color:#eaf2fb; font-family:var(--body); font-weight:600; font-size:15px; text-decoration:none; cursor:pointer;
+  }
+  .pdf-btn.main{ background:linear-gradient(135deg, var(--blue-500), var(--blue-700)); border-color:transparent; color:#fff; }
+  .pdf-close{ background:none; border:none; color:#9fb6cf; font-family:var(--body); font-size:14px; padding:10px; cursor:pointer; min-height:44px; }
+  .pdf-spin{ width:34px; height:34px; border:4px solid #1f3a5c; border-top-color:#4fc3f7; border-radius:50%; animation:pdfspin .8s linear infinite; }
+  @keyframes pdfspin{ to{ transform:rotate(360deg); } }
   .mobile-bar{ display:none; }
   .sb-toggle{ display:none; }
 
@@ -1030,7 +1045,6 @@
       background:#0f3057; color:#fff; padding:9px 16px; border-radius:999px; font-size:12.5px; text-align:center;
       max-width:92vw; box-shadow:0 10px 26px -8px rgba(0,0,0,.6); pointer-events:none;
     }
-    #iosPdfTip{ bottom:calc(84px + env(safe-area-inset-bottom)); }
     .mobile-bar{
       display:flex; position:fixed; left:0; right:0; bottom:0; z-index:40; gap:4px;
       padding:6px 8px calc(6px + env(safe-area-inset-bottom));
@@ -1052,7 +1066,7 @@
     body.m-preview #tabCotizacion > aside{ display:none; }
     body:not(.m-preview) #tabCotizacion > .preview-wrap{ display:none; }
   }
-  @media print{ .doc-page, .rep-sheet{ zoom:1 !important; } #iosPdfTip, .mobile-bar{ display:none !important; } }
+  @media print{ .doc-page, .rep-sheet{ zoom:1 !important; } #pdfBusy, #pdfSheet, .mobile-bar{ display:none !important; } }
 </style>
 </head>
 <body>
@@ -2800,24 +2814,169 @@ cerravolt@gmail.com</textarea>
     }
   }
 
-  // Impresión / PDF.
-  // Safari en iPhone solo abre la impresión si window.print() se llama en el mismo instante del toque,
-  // por eso NO se espera el guardado: la cotización se guarda en segundo plano y la impresión abre de inmediato.
-  // El título del documento ("CerraVolt - N°") es el nombre de archivo sugerido al guardar el PDF.
+  // ---------- PDF directo (iPhone / celular) ----------
+  // En iPhone la ventana de impresión obliga a hacer un gesto de dos dedos para sacar el PDF.
+  // Aquí el PDF se genera dentro de la app (html2canvas + jsPDF, cargados solo al usarlo) y se entrega
+  // con el menú Compartir del teléfono ("Guardar en Archivos", WhatsApp, correo...).
   function isIOS(){
     return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   }
-  function showIosPdfTip(){
-    if(!isIOS()) return;
-    const old = document.getElementById('iosPdfTip'); if(old) old.remove();
-    const tip = document.createElement('div');
-    tip.id = 'iosPdfTip'; tip.className = 'no-print';
-    tip.innerHTML = '<span><b>Guardar como PDF en iPhone:</b> en la vista previa de impresión, separa dos dedos sobre la hoja para abrirla como PDF y toca <b>Compartir → Guardar en Archivos</b>.</span><button type="button" aria-label="Cerrar">✕</button>';
-    tip.querySelector('button').onclick = () => tip.remove();
-    document.body.appendChild(tip);
-    setTimeout(() => { if(tip.parentNode) tip.remove(); }, 25000);
+  function isPhone(){ return isIOS() || document.documentElement.clientWidth <= 700; }
+
+  const PDF_LIBS = {
+    html2canvas: 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
+    jspdf: 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
+  };
+  function loadScriptOnce(src){
+    return new Promise((resolve, reject) => {
+      const el = document.createElement('script');
+      el.src = src; el.onload = resolve; el.onerror = () => reject(new Error('No se pudo cargar ' + src));
+      document.head.appendChild(el);
+    });
   }
-  window.showIosPdfTip = showIosPdfTip;
+  async function ensurePdfLibs(){
+    if(!window.html2canvas) await loadScriptOnce(PDF_LIBS.html2canvas);
+    if(!(window.jspdf && window.jspdf.jsPDF)) await loadScriptOnce(PDF_LIBS.jspdf);
+  }
+
+  function setPdfBusy(on){
+    const old = document.getElementById('pdfBusy'); if(old) old.remove();
+    if(!on) return;
+    const el = document.createElement('div'); el.id = 'pdfBusy'; el.className = 'no-print';
+    el.innerHTML = '<div class="pdf-card"><div class="pdf-spin"></div><div class="pdf-title">Preparando PDF…</div><div class="pdf-name">Esto toma unos segundos</div></div>';
+    document.body.appendChild(el);
+  }
+
+  // Hoja inferior con las opciones para guardar o compartir el PDF ya generado
+  function showPdfSheet(file){
+    const old = document.getElementById('pdfSheet'); if(old) old.remove();
+    const url = URL.createObjectURL(file);
+    const canShare = !!(navigator.canShare && navigator.canShare({ files: [file] }));
+    const el = document.createElement('div'); el.id = 'pdfSheet'; el.className = 'no-print';
+    el.innerHTML = '<div class="pdf-card"><div class="pdf-title">PDF listo ✓</div><div class="pdf-name"></div>' +
+      (canShare ? '<button type="button" class="pdf-btn main" id="pdfShare">Compartir / Guardar en Archivos</button>' : '') +
+      '<a class="pdf-btn' + (canShare ? '' : ' main') + '" id="pdfOpen" target="_blank" rel="noopener">Abrir PDF</a>' +
+      '<a class="pdf-btn" id="pdfDl">Descargar</a>' +
+      '<button type="button" class="pdf-close" id="pdfClose">Cerrar</button></div>';
+    document.body.appendChild(el);
+    el.querySelector('.pdf-name').textContent = file.name;
+    el.querySelector('#pdfOpen').href = url;
+    const dl = el.querySelector('#pdfDl'); dl.href = url; dl.download = file.name;
+    const share = el.querySelector('#pdfShare');
+    if(share) share.onclick = () => { navigator.share({ files: [file], title: file.name }).catch(() => {}); };
+    const close = () => { el.remove(); setTimeout(() => URL.revokeObjectURL(url), 60000); };
+    el.querySelector('#pdfClose').onclick = close;
+    el.addEventListener('click', e => { if(e.target === el) close(); });
+  }
+
+  const PDF_W = 794, PDF_H = 1123;   // hoja A4 a 96 dpi
+  // Dibuja un elemento (copia fuera de pantalla) y lo reparte en hojas A4 cortando entre filas/bloques.
+  //  opts: root, fileName, rows (selector: se puede cortar justo debajo), before (selector: se puede cortar justo antes),
+  //        hard (selector: siempre empieza hoja nueva), footer (elemento que se repite abajo de cada hoja), topMargin (px)
+  async function renderPdfFile(opts){
+    const host = document.createElement('div');
+    host.style.cssText = 'position:absolute; top:0; left:0; width:' + PDF_W + 'px; z-index:-9999; background:#fff; pointer-events:none;';
+    host.appendChild(opts.root);
+    if(opts.footer){ opts.footer.style.cssText += ';width:673px; margin:0; box-sizing:border-box; background:#fff;'; host.appendChild(opts.footer); }
+    document.body.appendChild(host);
+    try{
+      if(document.fonts && document.fonts.ready) await document.fonts.ready;
+      await Promise.all(Array.from(host.querySelectorAll('img')).map(img => img.complete ? 1 : new Promise(r => { img.onload = img.onerror = r; })));
+      const rootTop = opts.root.getBoundingClientRect().top;
+      const totalH = Math.ceil(opts.root.scrollHeight);
+      const visible = el => el.getBoundingClientRect().height > 0;
+      const posTop = el => Math.round(el.getBoundingClientRect().top - rootTop);
+      const posBottom = el => Math.round(el.getBoundingClientRect().bottom - rootTop);
+      const hard = opts.hard ? Array.from(opts.root.querySelectorAll(opts.hard)).filter(visible).map(posTop).filter(y => y > 20).sort((a, b) => a - b) : [];
+      const cand = []
+        .concat(opts.rows ? Array.from(opts.root.querySelectorAll(opts.rows)).filter(visible).map(posBottom) : [])
+        .concat(opts.before ? Array.from(opts.root.querySelectorAll(opts.before)).filter(visible).map(posTop) : [])
+        .concat(hard).sort((a, b) => a - b);
+
+      const scale = Math.min(2, Math.max(1, Math.sqrt(12e6 / (PDF_W * totalH))));
+      const canvas = await window.html2canvas(opts.root, { scale: scale, backgroundColor: '#ffffff', useCORS: true, logging: false, width: PDF_W, windowWidth: PDF_W });
+      let footerUrl = null, footerPx = 0;
+      if(opts.footer){
+        footerPx = Math.ceil(opts.footer.getBoundingClientRect().height);
+        const fc = await window.html2canvas(opts.footer, { scale: 2, backgroundColor: '#ffffff', useCORS: true, logging: false });
+        footerUrl = fc.toDataURL('image/jpeg', 0.92);
+      }
+
+      // reparto en hojas
+      const topMargin = opts.topMargin == null ? 40 : opts.topMargin;
+      const bottomReserve = footerPx ? footerPx + 32 : 24;
+      const pages = [];
+      let start = 0;
+      while(start < totalH - 70 && pages.length < 60){
+        const topM = pages.length === 0 ? 0 : topMargin;
+        const usable = PDF_H - topM - bottomReserve;
+        const limit = start + usable;
+        const nextHard = hard.find(y => y > start + 8);
+        let end;
+        if(nextHard !== undefined && nextHard <= limit) end = nextHard;
+        else if(totalH <= limit + 40) end = totalH;
+        else {
+          const ok = cand.filter(y => y > start + usable * 0.35 && y <= limit);
+          end = ok.length ? ok[ok.length - 1] : limit;
+        }
+        if(end <= start) end = Math.min(totalH, start + usable);
+        pages.push({ start: start, end: end, topM: topM });
+        start = end;
+      }
+      if(!pages.length) pages.push({ start: 0, end: totalH, topM: 0 });
+
+      const pdf = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true });
+      const mm = 210 / PDF_W;
+      pages.forEach((pg, i) => {
+        if(i > 0) pdf.addPage();
+        const sh = Math.max(1, Math.round((pg.end - pg.start) * scale));
+        const c = document.createElement('canvas'); c.width = canvas.width; c.height = sh;
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, c.width, c.height);
+        ctx.drawImage(canvas, 0, Math.round(pg.start * scale), canvas.width, sh, 0, 0, canvas.width, sh);
+        pdf.addImage(c.toDataURL('image/jpeg', 0.92), 'JPEG', 0, pg.topM * mm, 210, (pg.end - pg.start) * mm);
+        if(footerUrl) pdf.addImage(footerUrl, 'JPEG', 16, 297 - 8 - footerPx * mm, 673 * mm, footerPx * mm);
+      });
+      return new File([pdf.output('blob')], opts.fileName, { type: 'application/pdf' });
+    } finally {
+      host.remove();
+    }
+  }
+
+  // Genera el PDF y abre la hoja para guardarlo; si falla, usa la impresión normal como respaldo.
+  async function runPdf(buildOpts, fallback){
+    setPdfBusy(true);
+    try{
+      await ensurePdfLibs();
+      const file = await renderPdfFile(buildOpts());
+      setPdfBusy(false);
+      showPdfSheet(file);
+    }catch(e){
+      console.error('PDF directo falló:', e);
+      setPdfBusy(false);
+      alert('No se pudo generar el PDF directo en este momento. Se abrirá la ventana de impresión.');
+      if(fallback) fallback();
+    }
+  }
+  window.CVPdf = { isPhone: isPhone, run: runPdf };
+
+  function quotePdfOptions(num){
+    const src = document.getElementById('docPage');
+    const root = src.cloneNode(true);
+    root.querySelectorAll('[id]').forEach(e => e.removeAttribute('id'));
+    root.removeAttribute('id');
+    root.style.cssText += ';zoom:1; width:' + PDF_W + 'px; min-height:0; box-shadow:none; margin:0;';
+    root.querySelectorAll('.page-break-indicator, .doc-footer-spacer, .doc-footer').forEach(e => e.remove());
+    root.querySelectorAll('.doc-notes').forEach(n => { if(!n.textContent.replace(/Condiciones/i, '').trim()) n.remove(); });
+    const footer = src.querySelector('.doc-footer').cloneNode(true);
+    footer.querySelectorAll('[id]').forEach(e => e.removeAttribute('id'));
+    footer.style.marginTop = '0';
+    return {
+      root: root, footer: footer, fileName: 'CerraVolt - ' + num + '.pdf',
+      rows: '.doc-header, .doc-client, .doc-highlight, .doc-items thead, .doc-items tbody tr, .doc-totals, .doc-notes h3, .doc-notes .notes-body > *, .doc-images h3, .doc-img-item, .cq-doc-svg-wrap',
+      hard: '.doc-images'
+    };
+  }
 
   // En el celular el formulario y la hoja del documento no caben juntos: este botón alterna entre editar y ver la vista previa.
   function toggleMobileView(){
@@ -2831,6 +2990,9 @@ cerravolt@gmail.com</textarea>
     window.scrollTo(0, 0);
   }
 
+  // Imprimir / PDF de la cotización. El título del documento ("CerraVolt - N°") es el nombre de archivo sugerido.
+  // En celular / iPhone se genera el PDF directo; en computador se abre la impresión de inmediato
+  // y la cotización se guarda en segundo plano.
   function printQuote(){
     switchTab('cotizacion');
     document.body.classList.remove('printing-report');
@@ -2840,14 +3002,17 @@ cerravolt@gmail.com</textarea>
       return;
     }
     saveQuote().catch(e => console.error('Error guardando antes de imprimir:', e));
-    const prevTitle = document.title;
-    document.title = 'CerraVolt - ' + num;
-    let restored = false;
-    const restore = () => { if(restored) return; restored = true; document.title = prevTitle; };
-    window.addEventListener('afterprint', restore, { once: true });
-    document.addEventListener('pointerdown', restore, { once: true, capture: true });
-    showIosPdfTip();
-    window.print();
+    const printDialog = () => {
+      const prevTitle = document.title;
+      document.title = 'CerraVolt - ' + num;
+      let restored = false;
+      const restore = () => { if(restored) return; restored = true; document.title = prevTitle; };
+      window.addEventListener('afterprint', restore, { once: true });
+      document.addEventListener('pointerdown', restore, { once: true, capture: true });
+      window.print();
+    };
+    if(isPhone()) runPdf(() => quotePdfOptions(num), printDialog);
+    else printDialog();
   }
 
   async function loadQuoteByNum(num){
@@ -4718,23 +4883,37 @@ cerravolt@gmail.com`;
   }
   window.addEventListener('resize', fitRepSheet);
   // Imprime solo el informe: la clase en <body> oculta el resto de la app durante la impresión.
-  // print() se llama de inmediato al tocar (requisito de Safari en iPhone).
+  // En celular / iPhone el PDF se genera directo (sin la ventana de impresión).
+  function reportPdfOptions(){
+    var src = document.querySelector('#rep-doc .rep-sheet');
+    var root = src.cloneNode(true);
+    root.querySelectorAll('[id]').forEach(function(e){ e.removeAttribute('id'); });
+    root.style.cssText += ';zoom:1; width:794px; box-shadow:none; margin:0;';
+    return {
+      root: root, footer: null, fileName: 'CerraVolt - Informe ' + document.getElementById('rep-month').value + '.pdf',
+      rows: '.rep-head, .rep-kpis, .rep-t thead, .rep-t tbody tr, .rep-t tfoot, .rep-concl, .rep-warn, .rep-bars, .rep-note',
+      before: '.rep-h'
+    };
+  }
   function printReport(){
     renderInformeTab();
-    var prevTitle = document.title;
-    document.title = 'CerraVolt - Informe ' + document.getElementById('rep-month').value;
-    document.body.classList.add('printing-report');
-    var done = false;
-    var restore = function(){
-      if(done) return;
-      done = true;
-      document.body.classList.remove('printing-report');
-      document.title = prevTitle;
+    var printDialog = function(){
+      var prevTitle = document.title;
+      document.title = 'CerraVolt - Informe ' + document.getElementById('rep-month').value;
+      document.body.classList.add('printing-report');
+      var done = false;
+      var restore = function(){
+        if(done) return;
+        done = true;
+        document.body.classList.remove('printing-report');
+        document.title = prevTitle;
+      };
+      window.addEventListener('afterprint', restore, { once: true });
+      document.addEventListener('pointerdown', restore, { once: true, capture: true });
+      window.print();
     };
-    window.addEventListener('afterprint', restore, { once: true });
-    document.addEventListener('pointerdown', restore, { once: true, capture: true });
-    if(window.showIosPdfTip) window.showIosPdfTip();
-    window.print();
+    if(window.CVPdf && window.CVPdf.isPhone()) window.CVPdf.run(reportPdfOptions, printDialog);
+    else printDialog();
   }
   document.getElementById('rep-print').onclick = printReport;
   ['rep-month','rep-span'].forEach(function(id){ document.getElementById(id).addEventListener('change', renderInformeTab); });
