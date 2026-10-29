@@ -958,6 +958,29 @@
   #agendaRoot .fin-exp{ font-size:11.5px; color:var(--ink-faint); margin-top:2px; }
   #agendaRoot .pay-stat .v.neg{ color:var(--danger); }
   #agendaRoot .pay-stat .v.pos{ color:var(--green-ink); }
+
+  /* ---------- Celular ---------- */
+  #iosPdfTip{
+    position:fixed; left:12px; right:12px; bottom:14px; z-index:200;
+    display:flex; align-items:flex-start; gap:10px; padding:12px 14px; border-radius:12px;
+    background:#0f3057; color:#eaf2fb; font-size:13px; line-height:1.5;
+    border:1px solid #2e9fe0; box-shadow:0 14px 34px -8px rgba(0,0,0,.6);
+  }
+  #iosPdfTip button{ background:none; border:none; color:#9fb6cf; font-size:16px; cursor:pointer; padding:0 4px; }
+  @media(max-width:700px){
+    .toolbar{ flex-wrap:wrap; gap:8px; padding:10px 12px; }
+    .toolbar .t-left p{ display:none; }
+    .toolbar h1{ font-size:14px; }
+    .toolbar .t-right{ width:100%; flex-wrap:wrap; justify-content:flex-start; gap:6px; }
+    .toolbar .btn{ padding:9px 14px; font-size:13px; }
+    .btn-tb{ padding:8px 12px; font-size:12.5px; }
+    .app-switch button{ padding:6px 12px; font-size:12.5px; }
+    .tabs-bar{ padding:10px 12px 0; overflow-x:auto; }
+    .preview-wrap{ padding:12px; }
+    .panel{ padding:16px; max-height:none; }
+    .glass-tab{ padding:14px 10px; }
+  }
+  @media print{ .doc-page{ zoom:1 !important; } #iosPdfTip{ display:none !important; } }
 </style>
 </head>
 <body>
@@ -2695,18 +2718,42 @@ cerravolt@gmail.com</textarea>
     }
   }
 
-  // Antes de imprimir/generar el PDF, guarda siempre la cotización para que
-  // los datos nunca se pierdan aunque el usuario no haya presionado Guardar.
-  // También fija el título del documento a "CerraVolt - N°" para que ese sea
-  // el nombre de archivo sugerido al guardar como PDF desde el diálogo de impresión.
-  async function printQuote(){
+  // Impresión / PDF.
+  // Safari en iPhone solo abre la impresión si window.print() se llama en el mismo instante del toque,
+  // por eso NO se espera el guardado: la cotización se guarda en segundo plano y la impresión abre de inmediato.
+  // El título del documento ("CerraVolt - N°") es el nombre de archivo sugerido al guardar el PDF.
+  function isIOS(){
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  }
+  function showIosPdfTip(){
+    if(!isIOS()) return;
+    const old = document.getElementById('iosPdfTip'); if(old) old.remove();
+    const tip = document.createElement('div');
+    tip.id = 'iosPdfTip'; tip.className = 'no-print';
+    tip.innerHTML = '<span><b>Guardar como PDF en iPhone:</b> en la vista previa de impresión, separa dos dedos sobre la hoja para abrirla como PDF y toca <b>Compartir → Guardar en Archivos</b>.</span><button type="button" aria-label="Cerrar">✕</button>';
+    tip.querySelector('button').onclick = () => tip.remove();
+    document.body.appendChild(tip);
+    setTimeout(() => { if(tip.parentNode) tip.remove(); }, 25000);
+  }
+  window.showIosPdfTip = showIosPdfTip;
+
+  function printQuote(){
     switchTab('cotizacion');
-    await saveQuote();
+    document.body.classList.remove('printing-report');
     const num = document.getElementById('qNum').value.trim();
+    if(!num){
+      alert('Esta cotización aún no tiene número. Presiona "Guardar" para asignárselo y luego imprime.');
+      return;
+    }
+    saveQuote().catch(e => console.error('Error guardando antes de imprimir:', e));
     const prevTitle = document.title;
-    if(num) document.title = 'CerraVolt - ' + num;
+    document.title = 'CerraVolt - ' + num;
+    let restored = false;
+    const restore = () => { if(restored) return; restored = true; document.title = prevTitle; };
+    window.addEventListener('afterprint', restore, { once: true });
+    document.addEventListener('pointerdown', restore, { once: true, capture: true });
+    showIosPdfTip();
     window.print();
-    document.title = prevTitle;
   }
 
   async function loadQuoteByNum(num){
@@ -2815,6 +2862,17 @@ cerravolt@gmail.com`;
   renderImagesEdit();
   cqRenderControls();
   update();
+
+  // En pantallas angostas (celular) la hoja A4 se reduce para verla completa sin deslizar de lado.
+  function fitDocPreview(){
+    const page = document.getElementById('docPage');
+    if(!page) return;
+    const avail = document.documentElement.clientWidth - 24;
+    const full = 794; // 210mm a 96 dpi
+    page.style.zoom = (avail < full) ? String(Math.max(0.3, avail / full)) : '';
+  }
+  window.addEventListener('resize', fitDocPreview);
+  fitDocPreview();
 
   // init de los datos — solo corre tras iniciar sesión (llamado desde onAuthStateChanged)
   async function initAppData(){
@@ -4556,18 +4614,24 @@ cerravolt@gmail.com`;
     document.getElementById('rep-doc').innerHTML = reportHtml(mEl.value, Number(document.getElementById('rep-span').value) || 6);
   }
   // Imprime solo el informe: la clase en <body> oculta el resto de la app durante la impresión.
-  var repPrevTitle = null;
+  // print() se llama de inmediato al tocar (requisito de Safari en iPhone).
   function printReport(){
     renderInformeTab();
-    repPrevTitle = document.title;
+    var prevTitle = document.title;
     document.title = 'CerraVolt - Informe ' + document.getElementById('rep-month').value;
     document.body.classList.add('printing-report');
+    var done = false;
+    var restore = function(){
+      if(done) return;
+      done = true;
+      document.body.classList.remove('printing-report');
+      document.title = prevTitle;
+    };
+    window.addEventListener('afterprint', restore, { once: true });
+    document.addEventListener('pointerdown', restore, { once: true, capture: true });
+    if(window.showIosPdfTip) window.showIosPdfTip();
     window.print();
   }
-  window.addEventListener('afterprint', function(){
-    document.body.classList.remove('printing-report');
-    if(repPrevTitle != null){ document.title = repPrevTitle; repPrevTitle = null; }
-  });
   document.getElementById('rep-print').onclick = printReport;
   ['rep-month','rep-span'].forEach(function(id){ document.getElementById(id).addEventListener('change', renderInformeTab); });
 
