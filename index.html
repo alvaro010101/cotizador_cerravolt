@@ -1177,6 +1177,13 @@
       <div class="field" style="margin-top:14px;">
         <label class="checkbox-field"><input type="checkbox" id="qIva"> Mostrar IVA (19%) por separado</label>
       </div>
+      <div class="field" style="margin-top:10px;">
+        <label class="checkbox-field"><input type="checkbox" id="qAbonoOn"> Descontar abono (ej. visita técnica pagada)</label>
+      </div>
+      <div class="row2" id="abonoFields" style="display:none; margin-top:8px;">
+        <div class="field"><label>Concepto</label><input id="qAbonoLabel" placeholder="Visita técnica"></div>
+        <div class="field"><label>Monto abonado ($)</label><input id="qAbonoAmount" type="number" min="0" inputmode="numeric" placeholder="0"></div>
+      </div>
     </div>
 
 
@@ -2578,6 +2585,17 @@ cerravolt@gmail.com</textarea>
     } else {
       totalsEl.innerHTML = `<tr class="total"><td>Total</td><td>${clp(subtotal)}</td></tr>`;
     }
+    // Abono (ej. visita técnica pagada): se descuenta del total y queda el saldo a pagar
+    const abonoOn = document.getElementById('qAbonoOn').checked;
+    document.getElementById('abonoFields').style.display = abonoOn ? '' : 'none';
+    const abono = abonoOn ? Math.max(0, Number(document.getElementById('qAbonoAmount').value) || 0) : 0;
+    if(abono > 0){
+      const grand = showIva ? subtotal * 1.19 : subtotal;
+      const label = document.getElementById('qAbonoLabel').value.trim() || 'Visita técnica';
+      totalsEl.innerHTML += `
+        <tr><td>Abono · ${escapeHtml(label)}</td><td>− ${clp(abono)}</td></tr>
+        <tr class="total"><td>Saldo a pagar</td><td>${clp(Math.max(0, grand - abono))}</td></tr>`;
+    }
 
     // Notes (condiciones: texto editable + cláusulas opcionales insertadas antes de la línea SEC)
     document.getElementById('outNotes').innerHTML = assembleNotes();
@@ -2621,6 +2639,11 @@ cerravolt@gmail.com</textarea>
       serviceShow: document.getElementById('qServiceShow').checked,
       items: items,
       iva: document.getElementById('qIva').checked,
+      abono: {
+        on: document.getElementById('qAbonoOn').checked,
+        label: document.getElementById('qAbonoLabel').value,
+        amount: document.getElementById('qAbonoAmount').value
+      },
       notes: {
         text: document.getElementById('qNotes').innerHTML,
         condValida: document.getElementById('qCondValida').checked,
@@ -2652,6 +2675,9 @@ cerravolt@gmail.com</textarea>
     document.getElementById('qServiceShow').checked = s.serviceShow !== false;
     items = (s.items && s.items.length) ? s.items : [{ desc:'', qty:1, price:0 }];
     document.getElementById('qIva').checked = !!s.iva;
+    document.getElementById('qAbonoOn').checked = !!s.abono?.on;
+    document.getElementById('qAbonoLabel').value = s.abono?.label || '';
+    document.getElementById('qAbonoAmount').value = s.abono?.amount || '';
     const legacyText = s.notes?.text || '';
     const filteredLegacy = legacyText.split('\n').filter(l => !/normativa\s+SEC/i.test(l)).join('\n');
     document.getElementById('qNotes').innerHTML = /<[a-z][\s\S]*>/i.test(filteredLegacy) ? filteredLegacy : qnLinesToHtml(filteredLegacy);
@@ -3062,6 +3088,9 @@ cerravolt@gmail.com</textarea>
     document.getElementById('qServiceShow').checked = true;
     items = [{ desc:'', qty:1, price:0 }];
     document.getElementById('qIva').checked = false;
+    document.getElementById('qAbonoOn').checked = false;
+    document.getElementById('qAbonoLabel').value = '';
+    document.getElementById('qAbonoAmount').value = '';
     document.getElementById('qNotes').innerHTML = '';
     document.getElementById('qCondValida').checked = false;
     document.getElementById('qCondGarantia').checked = false;
@@ -3096,7 +3125,7 @@ cerravolt@gmail.com`;
   // init de la app (formulario) — corre siempre, esté o no logueado
   document.getElementById('qDate').value = new Date().toISOString().slice(0,10);
   try{ document.execCommand('defaultParagraphSeparator', false, 'div'); }catch(e){}
-  ['cName','cAddr','cContact','qNum','qDate','qValid','qService','qServiceShow','qIva','qNotes','qCondValida','qCondGarantia','qCondNoVisita','qCond50','qCondSEC','qBankShow','qBank'].forEach(id=>{
+  ['cName','cAddr','cContact','qNum','qDate','qValid','qService','qServiceShow','qIva','qAbonoOn','qAbonoLabel','qAbonoAmount','qNotes','qCondValida','qCondGarantia','qCondNoVisita','qCond50','qCondSEC','qBankShow','qBank'].forEach(id=>{
     document.getElementById(id).addEventListener('input', update);
   });
   document.getElementById('imgUpload').addEventListener('change', (e) => {
