@@ -1151,6 +1151,10 @@
       <div class="field"><label>Nombre</label><input id="cName" placeholder="Nombre del cliente"></div>
       <div class="field"><label>Dirección</label><input id="cAddr" placeholder="Calle, número, comuna"></div>
       <div class="field"><label>Teléfono / Email (opcional)</label><input id="cContact" placeholder="+56 9 ..."></div>
+      <div class="field">
+        <label class="checkbox-field"><input type="checkbox" id="qRutShow"> Incluir RUT del cliente (si lo exige)</label>
+      </div>
+      <div class="field" id="rutField" style="display:none;"><label>RUT</label><input id="cRut" placeholder="12.345.678-9" autocomplete="off" autocapitalize="characters"></div>
     </div>
 
     <div class="field-group">
@@ -1315,6 +1319,7 @@ cerravolt@gmail.com</textarea>
           <h3>Cotización para</h3>
           <p id="outName">—</p>
           <p class="muted" id="outAddr"></p>
+          <p class="muted" id="outRut" style="display:none;"></p>
           <p class="muted" id="outContact"></p>
         </div>
         <div class="block" style="text-align:right;">
@@ -1695,7 +1700,8 @@ cerravolt@gmail.com</textarea>
       id,
       name: d.name || '',
       address: d.address || d.addr || '',
-      contact: d.phone || d.email || d.contact || ''
+      contact: d.phone || d.email || d.contact || '',
+      rut: d.rut || ''
     };
   }
 
@@ -1726,6 +1732,8 @@ cerravolt@gmail.com</textarea>
     document.getElementById('cName').value = c.name;
     document.getElementById('cAddr').value = c.address;
     document.getElementById('cContact').value = c.contact;
+    document.getElementById('cRut').value = c.rut || '';
+    if(c.rut) document.getElementById('qRutShow').checked = true;
     update();
   }
 
@@ -1736,6 +1744,7 @@ cerravolt@gmail.com</textarea>
     if(!name) return true;
     const address = document.getElementById('cAddr').value.trim();
     const contact = document.getElementById('cContact').value.trim();
+    const rut = document.getElementById('cRut').value.trim();
     const digits = contact.replace(/\D/g, '');
     const hasPhone = digits.length >= 8;
     const id = hasPhone ? digits : cliSlug(name);
@@ -1745,6 +1754,7 @@ cerravolt@gmail.com</textarea>
       const now = new Date().toISOString();
       const data = { name, address, phone: hasPhone ? contact : '', updatedAt: now };
       if(!hasPhone && contact) data.email = contact;
+      if(rut) data.rut = rut;
       if(!snap.exists) data.createdAt = now;
       await ref.set(data, { merge: true });
       await refreshClientsList();
@@ -2544,6 +2554,12 @@ cerravolt@gmail.com</textarea>
     document.getElementById('outName').textContent = document.getElementById('cName').value || 'Nombre del cliente';
     document.getElementById('outAddr').textContent = document.getElementById('cAddr').value || '';
     document.getElementById('outContact').textContent = document.getElementById('cContact').value || '';
+    const rutOn = document.getElementById('qRutShow').checked;
+    document.getElementById('rutField').style.display = rutOn ? '' : 'none';
+    const rutVal = document.getElementById('cRut').value.trim();
+    const outRut = document.getElementById('outRut');
+    outRut.style.display = rutOn && rutVal ? '' : 'none';
+    outRut.textContent = rutOn && rutVal ? 'RUT: ' + rutVal : '';
 
     // Servicio a realizar
     document.getElementById('outServiceBlock').style.display = document.getElementById('qServiceShow').checked ? 'block' : 'none';
@@ -2633,7 +2649,9 @@ cerravolt@gmail.com</textarea>
       client: {
         name: document.getElementById('cName').value,
         addr: document.getElementById('cAddr').value,
-        contact: document.getElementById('cContact').value
+        contact: document.getElementById('cContact').value,
+        rut: document.getElementById('cRut').value,
+        rutShow: document.getElementById('qRutShow').checked
       },
       service: document.getElementById('qService').value,
       serviceShow: document.getElementById('qServiceShow').checked,
@@ -2671,6 +2689,8 @@ cerravolt@gmail.com</textarea>
     document.getElementById('cName').value = s.client?.name || '';
     document.getElementById('cAddr').value = s.client?.addr || '';
     document.getElementById('cContact').value = s.client?.contact || '';
+    document.getElementById('cRut').value = s.client?.rut || '';
+    document.getElementById('qRutShow').checked = !!s.client?.rutShow;
     document.getElementById('qService').value = s.service || '';
     document.getElementById('qServiceShow').checked = s.serviceShow !== false;
     items = (s.items && s.items.length) ? s.items : [{ desc:'', qty:1, price:0 }];
@@ -3080,6 +3100,8 @@ cerravolt@gmail.com</textarea>
     document.getElementById('cName').value = '';
     document.getElementById('cAddr').value = '';
     document.getElementById('cContact').value = '';
+    document.getElementById('cRut').value = '';
+    document.getElementById('qRutShow').checked = false;
     document.getElementById('clientSelect').value = '';
     document.getElementById('qNum').value = num;
     document.getElementById('qDate').value = new Date().toISOString().slice(0,10);
@@ -3125,8 +3147,16 @@ cerravolt@gmail.com`;
   // init de la app (formulario) — corre siempre, esté o no logueado
   document.getElementById('qDate').value = new Date().toISOString().slice(0,10);
   try{ document.execCommand('defaultParagraphSeparator', false, 'div'); }catch(e){}
-  ['cName','cAddr','cContact','qNum','qDate','qValid','qService','qServiceShow','qIva','qAbonoOn','qAbonoLabel','qAbonoAmount','qNotes','qCondValida','qCondGarantia','qCondNoVisita','qCond50','qCondSEC','qBankShow','qBank'].forEach(id=>{
+  ['cName','cAddr','cContact','qRutShow','cRut','qNum','qDate','qValid','qService','qServiceShow','qIva','qAbonoOn','qAbonoLabel','qAbonoAmount','qNotes','qCondValida','qCondGarantia','qCondNoVisita','qCond50','qCondSEC','qBankShow','qBank'].forEach(id=>{
     document.getElementById(id).addEventListener('input', update);
+  });
+  // Da formato 12.345.678-9 al RUT chileno al salir del campo (si no calza, se deja tal cual)
+  document.getElementById('cRut').addEventListener('blur', (e) => {
+    const raw = e.target.value.replace(/[^0-9kK]/g, '').toUpperCase();
+    if(raw.length >= 2 && raw.length <= 9){
+      e.target.value = raw.slice(0, -1).replace(/\B(?=(\d{3})+(?!\d))/g, '.') + '-' + raw.slice(-1);
+      update();
+    }
   });
   document.getElementById('imgUpload').addEventListener('change', (e) => {
     handleImageUpload(e.target.files);
