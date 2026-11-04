@@ -22,6 +22,8 @@
     --display:'Space Grotesk', sans-serif; --body:'Inter', sans-serif; --mono:'JetBrains Mono', monospace;
   }
   *{box-sizing:border-box; margin:0; padding:0;}
+  /* iOS Safari agranda el texto de algunos bloques por su cuenta (se nota en la hoja A4 y en el PDF): se desactiva */
+  html{-webkit-text-size-adjust:100%; text-size-adjust:100%;}
   body{background:var(--bg); color:var(--steel-100); font-family:var(--body); -webkit-font-smoothing:antialiased;}
   input,textarea{font-family:inherit; color:inherit;}
 
@@ -2921,7 +2923,8 @@ cerravolt@gmail.com</textarea>
   //        hard (selector: siempre empieza hoja nueva), footer (elemento que se repite abajo de cada hoja), topMargin (px)
   async function renderPdfFile(opts){
     const host = document.createElement('div');
-    host.style.cssText = 'position:absolute; top:0; left:0; width:' + PDF_W + 'px; z-index:-9999; background:#fff; pointer-events:none;';
+    host.style.cssText = 'position:absolute; top:0; left:0; width:' + PDF_W + 'px; z-index:-9999; background:#fff; pointer-events:none; -webkit-text-size-adjust:100%; text-size-adjust:100%;';
+    opts.root.style.cssText += ';-webkit-text-size-adjust:100%; text-size-adjust:100%;';
     host.appendChild(opts.root);
     if(opts.footer){ opts.footer.style.cssText += ';width:673px; margin:0; box-sizing:border-box; background:#fff;'; host.appendChild(opts.footer); }
     document.body.appendChild(host);
