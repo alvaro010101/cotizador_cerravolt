@@ -4681,7 +4681,37 @@ cerravolt@gmail.com`;
       '</tbody><tfoot><tr><td></td>'+(showTech?'<td></td>':'')+'<td></td><td></td><td><b>Total pagado</b></td><td class="mono"><b>'+formatCLP(sumBy(list,'amount'))+'</b></td></tr></tfoot></table></div>';
   }
 
-  // ctx (pago nuevo): { technician, from, to, amount, serviceCount, calc } · existing: pago guardado (editar / eliminar)
+  // Registra el pago y, en la misma operación, marca como pagados al técnico los servicios y adelantos incluidos
+  // (así no se pueden volver a calcular ni a pagar).
+  async function commitTechPayment(payload, serviceIds, advanceIds){
+    var payRef = state.db.collection('techPayments').doc();
+    var ops = [];
+    serviceIds.forEach(function(id){ ops.push([state.db.collection('services').doc(id), { techPaymentId: payRef.id, techPaidAt: payload.date }]); });
+    advanceIds.forEach(function(id){ ops.push([state.db.collection('advances').doc(id), { techPaymentId: payRef.id }]); });
+    var first = true;
+    do{
+      var batch = state.db.firestore.batch();
+      if(first){ batch.set(payRef, payload); first = false; }
+      ops.splice(0, 400).forEach(function(o){ batch.update(o[0], o[1]); });
+      await batch.commit();
+    } while(ops.length);
+  }
+  // Elimina el pago y libera sus servicios y adelantos (vuelven a quedar pendientes de pago).
+  async function deleteTechPayment(id){
+    var del = firebase.firestore.FieldValue.delete();
+    var ops = [];
+    state.services.forEach(function(v, sid){ if(v.techPaymentId === id) ops.push([state.db.collection('services').doc(sid), { techPaymentId: del, techPaidAt: del }]); });
+    state.advances.forEach(function(v, aid){ if(v.techPaymentId === id) ops.push([state.db.collection('advances').doc(aid), { techPaymentId: del }]); });
+    var first = true;
+    do{
+      var batch = state.db.firestore.batch();
+      if(first){ batch.delete(state.db.collection('techPayments').doc(id)); first = false; }
+      ops.splice(0, 400).forEach(function(o){ batch.update(o[0], o[1]); });
+      await batch.commit();
+    } while(ops.length);
+  }
+
+  // ctx (pago nuevo): { technician, from, to, amount, serviceCount, serviceIds, advanceIds, calc } · existing: pago guardado (editar / eliminar)
   function openTechPaymentForm(existing, ctx){
     var isEdit = !!existing;
     var src = isEdit ? existing : ctx;
@@ -4717,11 +4747,11 @@ cerravolt@gmail.com`;
     if(isEdit){
       document.getElementById('m-delete').onclick = function(){
         document.getElementById('m-confirm-slot').innerHTML =
-          '<div class="confirm-box"><span>¿Eliminar este pago? El período volverá a figurar como pendiente.</span>' +
+          '<div class="confirm-box"><span>¿Eliminar este pago? Sus servicios volverán a quedar pendientes y se podrán calcular de nuevo.</span>' +
           '<span style="display:flex; gap:8px;"><button class="btn btn-ghost btn-sm" id="m-cancel-del">Cancelar</button><button class="btn btn-danger btn-sm" id="m-confirm-del">Eliminar</button></span></div>';
         document.getElementById('m-cancel-del').onclick = function(){ document.getElementById('m-confirm-slot').innerHTML = ''; };
         document.getElementById('m-confirm-del').onclick = async function(){
-          try{ await state.db.collection('techPayments').doc(existing.id).delete(); closeModal(); renderPagosTab(); }
+          try{ await deleteTechPayment(existing.id); closeModal(); renderPagosTab(); }
           catch(err){ console.error(err); alert('No se pudo eliminar el pago. Intenta de nuevo.'); }
         };
       };
@@ -4750,7 +4780,7 @@ cerravolt@gmail.com`;
           payload.serviceCount = ctx.serviceCount;
           payload.calc = ctx.calc;   // desglose del cálculo al momento de pagar
           payload.createdAt = payload.updatedAt;
-          await state.db.collection('techPayments').add(payload);
+          await commitTechPayment(payload, ctx.serviceIds || [], ctx.advanceIds || []);
         }
         closeModal();
         renderPagosTab();
@@ -5284,7 +5314,7 @@ cerravolt@gmail.com`;
     var onlyDone = document.getElementById('pay-only-done').checked;
     var onlyPaid = document.getElementById('pay-only-paid').checked;
     var box = document.getElementById('pagos-results');
-    var NOTE = '<div class="field-hint">A pagar = comisión (sobre monto − gastos) + gastos que pagó el técnico − efectivo que ya recibió − adelantos entregados dentro del rango de fechas.</div>';
+    var NOTE = '<div class="field-hint">A pagar = comisión (sobre monto − gastos) + gastos que pagó el técnico − efectivo que ya recibió − adelantos entregados dentro del rango de fechas. Los servicios ya pagados al técnico no se vuelven a calcular.</div>';
     var regCtx = null;   // datos del período del técnico seleccionado (para "Registrar pago")
     var wireRows = function(){
       box.querySelectorAll('[data-techpay]').forEach(function(tr){
@@ -5311,8 +5341,11 @@ cerravolt@gmail.com`;
         var items = computePayroll(t.name, from, to, onlyDone, onlyPaid);
         var pct = Number(t.commissionPct)||0;
         var paid = sumBy(techPaymentsFor(t.name, from, to), 'amount');
-        return Object.assign({ name: t.name, pct: pct, paid: paid }, payTotals(items, pct, sumBy(advancesFor(t.name, from, to), 'amount')));
-      }).filter(function(r){ return r.count>0 || r.adv>0; });
+        // Solo se calcula lo que aún no se ha pagado: los servicios y adelantos ya pagados quedan fuera
+        var pend = items.filter(function(x){ return !x.techPaymentId; });
+        var advPend = advancesFor(t.name, from, to).filter(function(a){ return !a.techPaymentId; });
+        return Object.assign({ name: t.name, pct: pct, paid: paid, total: items.length }, payTotals(pend, pct, sumBy(advPend, 'amount')));
+      }).filter(function(r){ return r.total>0 || r.adv>0 || r.paid>0; });
       rows.sort(function(a,b){ return b.billed-a.billed; });
 
       if(rows.length===0){
@@ -5336,13 +5369,12 @@ cerravolt@gmail.com`;
           '<div class="pay-stat"><div class="l">− Adelantos del rango</div><div class="v">'+formatCLP(g.adv)+'</div></div>' +
           '<div class="pay-stat"><div class="l">Total a pagar</div><div class="v">'+formatNet(g.toPay)+'</div></div>' +
         '</div>' + NOTE +
-        '<div class="pay-table-wrap"><table class="pay-table"><thead><tr><th>Técnico</th><th>Servicios</th><th>Facturado</th><th>Gastos</th><th>Base</th><th>Comisión</th><th>+ Reembolso</th><th>− Efectivo</th><th>− Adelantos</th><th>A pagar</th><th>Pagado</th><th>Saldo</th></tr></thead><tbody>' +
+        '<div class="pay-table-wrap"><table class="pay-table"><thead><tr><th>Técnico</th><th>Servicios</th><th>Facturado</th><th>Gastos</th><th>Base</th><th>Comisión</th><th>+ Reembolso</th><th>− Efectivo</th><th>− Adelantos</th><th>A pagar</th><th>Pagado</th></tr></thead><tbody>' +
         rows.map(function(r){
           return '<tr><td>'+escapeHtml(r.name)+'</td><td class="mono">'+r.count+'</td><td class="mono">'+formatCLP(r.billed)+'</td><td class="mono">'+formatCLP(r.spent)+'</td><td class="mono">'+formatCLP(r.base)+'</td>' +
             '<td class="mono">'+(r.pct ? r.pct+'% = '+formatCLP(r.commission) : '—')+'</td><td class="mono">'+formatCLP(r.reimb)+'</td><td class="mono">'+formatCLP(r.cash)+'</td><td class="mono">'+formatCLP(r.adv)+'</td>' +
-            '<td class="mono"><b>'+(r.toPay!=null ? formatNet(r.toPay) : '—')+'</b></td>' +
-            '<td class="mono">'+(r.paid ? formatCLP(r.paid) : '—')+'</td>' +
-            '<td class="mono">'+(r.toPay==null ? '—' : (r.toPay > 0 ? (r.toPay - r.paid <= 0 ? '<span style="color:var(--green-ink)">✓ Pagado</span>' : formatNet(r.toPay - r.paid)) : '—'))+'</td></tr>';
+            '<td class="mono"><b>'+(r.total>0 && r.count===0 && !r.adv ? '<span style="color:var(--green-ink)">✓ Pagado</span>' : (r.toPay!=null ? formatNet(r.toPay) : '—'))+'</b></td>' +
+            '<td class="mono">'+(r.paid ? formatCLP(r.paid) : '—')+'</td></tr>';
         }).join('') +
         '</tbody></table></div>' +
         '<h4 style="margin:10px 0 0; font-size:13px; color:var(--ink-soft);">Adelantos del rango</h4>' +
@@ -5363,24 +5395,28 @@ cerravolt@gmail.com`;
         saveCsv('pagos-cerravolt-'+from+'_a_'+to+'.csv', rowsToCsv(csvRows), document.getElementById('btn-export-payroll'), document.getElementById('pagos-hint'));
       };
     } else {
-      var items = computePayroll(techSel, from, to, onlyDone, onlyPaid);
+      var allItems = computePayroll(techSel, from, to, onlyDone, onlyPaid);
+      var items = allItems.filter(function(x){ return !x.techPaymentId; });          // pendientes de pago al técnico
+      var paidItems = allItems.filter(function(x){ return !!x.techPaymentId; });     // ya pagados (no se recalculan)
       var techDoc = Array.from(state.technicians.values()).find(function(t){ return t.name===techSel; });
       var pct = techDoc ? Number(techDoc.commissionPct)||0 : 0;
       var advList = advancesFor(techSel, from, to);
-      var T = payTotals(items, pct, sumBy(advList, 'amount'));
+      var advPending = advList.filter(function(a){ return !a.techPaymentId; });
+      var T = payTotals(items, pct, sumBy(advPending, 'amount'));
       var payList = techPaymentsFor(techSel, from, to);
       var paidSum = sumBy(payList, 'amount');
-      var balance = pct ? T.toPay - paidSum : 0;
-      regCtx = { technician: techSel, from: from, to: to, amount: Math.max(0, balance), serviceCount: items.length,
+      regCtx = { technician: techSel, from: from, to: to, amount: Math.max(0, T.toPay || 0), serviceCount: items.length,
+        serviceIds: items.map(function(x){ return x.id; }), advanceIds: advPending.map(function(a){ return a.id; }),
         calc: { billed: T.billed, spent: T.spent, base: T.base, pct: pct, commission: T.commission, reimb: T.reimb, cash: T.cash, adv: T.adv, toPay: T.toPay } };
       var payBar = '';
-      if(pct && (T.toPay > 0 || paidSum > 0)){
-        var settled = T.toPay > 0 && balance <= 0;
-        payBar = '<div class="pay-stat-grid">' +
-          '<div class="pay-stat"><div class="l">Pagado al técnico</div><div class="v">'+formatCLP(paidSum)+'</div></div>' +
-          '<div class="pay-stat"><div class="l">'+(balance < 0 ? 'Pagado de más' : 'Saldo por pagar')+'</div><div class="v" style="color:'+(settled?'var(--green-ink)':'inherit')+'">'+(settled && balance === 0 ? '✓ Pagado' : formatCLP(Math.abs(balance)))+'</div></div>' +
-        '</div>' +
-        (balance > 0 ? '<button class="btn btn-primary btn-sm" id="btn-reg-pay" style="margin:6px 0;">✔ '+(paidSum>0?'Registrar otro pago':'Marcar período como pagado')+'</button>' : '');
+      if(pct){
+        payBar = '<div class="pay-stat-grid"><div class="pay-stat"><div class="l">Ya pagado al técnico</div><div class="v">'+formatCLP(paidSum)+'</div></div>' +
+          (paidItems.length ? '<div class="pay-stat"><div class="l">Servicios ya pagados</div><div class="v">'+paidItems.length+'</div></div>' : '') + '</div>';
+        if(items.length && T.toPay > 0){
+          payBar += '<button class="btn btn-primary btn-sm" id="btn-reg-pay" style="margin:6px 0;">✔ Marcar período como pagado ('+formatCLP(T.toPay)+')</button>';
+        } else if(!items.length && paidItems.length){
+          payBar += '<div class="field-hint" style="color:var(--green-ink); font-weight:600;">✓ Período pagado: los '+paidItems.length+' servicio'+(paidItems.length===1?'':'s')+' de este rango ya fueron pagados al técnico y no se vuelven a calcular. Para recalcularlos, elimina el pago en la lista de abajo.</div>';
+        }
       }
       var doneCount = items.filter(function(s){ return s.completed; }).length;
       var paidCount = items.filter(function(s){ return s.paymentStatus==='pagado'; }).length;
@@ -5404,12 +5440,12 @@ cerravolt@gmail.com`;
         '</div>' +
         payBar +
         (pct ? NOTE : '<div class="field-hint">Este técnico no tiene una comisión configurada. Edítala en la pestaña Técnicos para calcular automáticamente el monto a pagar.</div>') +
-        (items.length ? '<div class="pay-table-wrap"><table class="pay-table"><thead><tr><th>Fecha</th><th>Cliente</th><th>Monto</th><th>Gastos</th><th>Pagó el técnico</th><th>Base</th><th>Efectivo</th><th>Estado</th></tr></thead><tbody>' +
-          items.map(function(s){
+        (allItems.length ? '<div class="pay-table-wrap"><table class="pay-table"><thead><tr><th>Fecha</th><th>Cliente</th><th>Monto</th><th>Gastos</th><th>Pagó el técnico</th><th>Base</th><th>Efectivo</th><th>Estado</th></tr></thead><tbody>' +
+          allItems.map(function(s){
             var d = dateFromISO(s.date), pp = payTotals([s], 0);
             return '<tr class="fin-row" data-id="'+s.id+'"><td>'+d.getDate()+' '+MONTHS[d.getMonth()].slice(0,3)+'</td><td>'+escapeHtml(s.clientName||'')+'</td>' +
               '<td class="mono">'+formatCLP(s.amount)+'</td><td class="mono">'+formatCLP(pp.spent)+'</td><td class="mono">'+formatCLP(pp.reimb)+'</td><td class="mono">'+formatCLP(pp.base)+'</td><td class="mono">'+formatCLP(pp.cash)+'</td>' +
-              '<td>'+(s.paymentStatus==='pagado'?'Pagado':'Pendiente')+'</td></tr>';
+              '<td>'+(s.paymentStatus==='pagado'?'Pagado':'Pendiente')+(s.techPaymentId ? '<div class="field-hint" style="color:var(--green-ink); margin:0;">✓ Técnico pagado</div>' : '')+'</td></tr>';
           }).join('') + '</tbody></table></div>'
           : '<div class="empty-state" style="padding:24px;"><div class="msg">No hay servicios de este técnico en el rango seleccionado.</div></div>') +
         '<h4 style="margin:10px 0 0; font-size:13px; color:var(--ink-soft);">Adelantos del rango</h4>' +
@@ -5421,13 +5457,13 @@ cerravolt@gmail.com`;
       '</div>';
       wireRows();
       document.getElementById('btn-export-payroll').onclick = function(){
-        var csvRows = [['N° de seguimiento','Fecha','Hora','Cliente','Monto','Gastos','Gastos pagados por el técnico','Base (monto - gastos)','Efectivo recibido','Estado de cobro','Realizado']];
-        items.forEach(function(s){
+        var csvRows = [['N° de seguimiento','Fecha','Hora','Cliente','Monto','Gastos','Gastos pagados por el técnico','Base (monto - gastos)','Efectivo recibido','Estado de cobro','Realizado','Pago al técnico']];
+        allItems.forEach(function(s){
           var pp = payTotals([s], 0);
-          csvRows.push([s.trackingCode||'', s.date, s.time||'', s.clientName||'', s.amount||0, pp.spent, pp.reimb, pp.base, pp.cash, s.paymentStatus==='pagado'?'Pagado':'Pendiente', s.completed?'Sí':'No']);
+          csvRows.push([s.trackingCode||'', s.date, s.time||'', s.clientName||'', s.amount||0, pp.spent, pp.reimb, pp.base, pp.cash, s.paymentStatus==='pagado'?'Pagado':'Pendiente', s.completed?'Sí':'No', s.techPaymentId?'Pagado':'Pendiente']);
         });
         csvRows.push([]);
-        csvRows.push(['','Totales','','',T.billed,T.spent,T.reimb,T.base,T.cash,'','']);
+        csvRows.push(['','Totales (solo servicios pendientes de pago)','','',T.billed,T.spent,T.reimb,T.base,T.cash,'','']);
         if(pct) csvRows.push(['','Comisión '+pct+'% de la base','','','','','','',T.commission,'','']);
         csvRows.push(['','Adelantos del rango (descuento)','','','','','','',T.adv,'','']);
         if(pct) csvRows.push(['','A pagar (comisión + gastos del técnico - efectivo - adelantos)','','','','','','',T.toPay,'','']);
@@ -5894,6 +5930,7 @@ cerravolt@gmail.com`;
           '<span style="display:flex; gap:6px;">' +
             '<span class="status-pill '+(s.paymentStatus==='pagado'?'pagado':'pendiente')+'">'+(s.paymentStatus==='pagado'?'Pagado':'Pendiente')+'</span>' +
             '<span class="status-pill '+(s.completed?'realizado':'porhacer')+'">'+(s.completed?'Realizado':'Por realizar')+'</span>' +
+            (s.techPaymentId ? '<span class="status-pill pagado">Técnico pagado ✓</span>' : '') +
             '<span class="status-pill '+(s.invoiced?'facturado':'sinfactura')+'">'+(s.invoiced?('Factura '+escapeHtml(s.invoiceNumber||'emitida')):'Sin factura')+'</span>' +
           '</span>' +
         '</div>' +
