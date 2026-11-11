@@ -3221,6 +3221,7 @@ cerravolt@gmail.com`;
     technicians: new Map(),// id -> data
     purchases: new Map(),  // id -> compra o gasto general
     advances: new Map(),   // id -> adelanto a un técnico
+    techPayments: new Map(),// id -> pago registrado a un técnico (período + monto + método)
     selectedDate: isoFromDate(new Date()),
     calYear: new Date().getFullYear(),
     calMonth: new Date().getMonth(),
@@ -3327,6 +3328,16 @@ cerravolt@gmail.com`;
     }, function(err){
       console.error('advances snapshot error', err);
       showBanner('No se pudo sincronizar los adelantos (' + err.code + '). Revisa las reglas de Firestore.');
+    }));
+
+    unsubs.push(db.collection('techPayments').orderBy('date').onSnapshot(function(snap){
+      var m = new Map();
+      snap.docs.forEach(function(d){ m.set(d.id, d.data()); });
+      state.techPayments = m;
+      renderAll();
+    }, function(err){
+      console.error('techPayments snapshot error', err);
+      showBanner('No se pudo sincronizar los pagos a técnicos (' + err.code + '). Revisa las reglas de Firestore.');
     }));
   }
 
@@ -4148,6 +4159,7 @@ cerravolt@gmail.com`;
           if(existing.name && existing.name !== name){
             state.services.forEach(function(v, sid){ if(v.technician === existing.name) affected.push(['services', sid]); });
             state.advances.forEach(function(v, aid){ if(v.technician === existing.name) affected.push(['advances', aid]); });
+            state.techPayments.forEach(function(v, pid){ if(v.technician === existing.name) affected.push(['techPayments', pid]); });
           }
           var first = true;
           do{
@@ -4644,6 +4656,112 @@ cerravolt@gmail.com`;
     };
   }
   document.getElementById('btn-new-advance').onclick = function(){ openAdvanceForm(null, document.getElementById('pay-tech').value); };
+
+  /* ---------------- pagos registrados a técnicos ---------------- */
+  // Pagos cuyo período (desde–hasta) se cruza con el rango consultado.
+  function techPaymentsFor(techName, from, to){
+    var out = [];
+    state.techPayments.forEach(function(p, id){
+      if(techName && p.technician !== techName) return;
+      var pf = p.periodFrom || p.date, pt = p.periodTo || p.date;
+      if(pt < from || pf > to) return;
+      out.push(Object.assign({ id: id }, p));
+    });
+    out.sort(function(x, y){ return (x.date||'').localeCompare(y.date||''); });
+    return out;
+  }
+
+  function techPaymentsTableHtml(list, showTech){
+    if(!list.length) return '<div class="field-hint">Aún no hay pagos registrados para este período.</div>';
+    return '<div class="pay-table-wrap"><table class="pay-table"><thead><tr><th>Pagado el</th>'+(showTech?'<th>Técnico</th>':'')+'<th>Período</th><th>Método</th><th>Nota</th><th>Monto</th></tr></thead><tbody>' +
+      list.map(function(p){
+        return '<tr class="fin-row" data-techpay="'+p.id+'"><td>'+fmtShortDate(p.date)+'</td>'+(showTech?'<td>'+escapeHtml(p.technician||'')+'</td>':'')+
+          '<td>'+fmtShortDate(p.periodFrom||p.date)+' – '+fmtShortDate(p.periodTo||p.date)+'</td><td>'+methodLabel(p.method)+'</td><td>'+escapeHtml(p.note||'')+'</td><td class="mono">'+formatCLP(p.amount)+'</td></tr>';
+      }).join('') +
+      '</tbody><tfoot><tr><td></td>'+(showTech?'<td></td>':'')+'<td></td><td></td><td><b>Total pagado</b></td><td class="mono"><b>'+formatCLP(sumBy(list,'amount'))+'</b></td></tr></tfoot></table></div>';
+  }
+
+  // ctx (pago nuevo): { technician, from, to, amount, serviceCount, calc } · existing: pago guardado (editar / eliminar)
+  function openTechPaymentForm(existing, ctx){
+    var isEdit = !!existing;
+    var src = isEdit ? existing : ctx;
+    var tech = isEdit ? existing.technician : ctx.technician;
+    var pFrom = isEdit ? (existing.periodFrom || existing.date) : ctx.from;
+    var pTo = isEdit ? (existing.periodTo || existing.date) : ctx.to;
+    var data = isEdit ? existing : { amount: Math.max(0, Math.round(ctx.amount)), method:'transferencia', date: isoFromDate(new Date()), note:'' };
+    var html =
+      '<div class="modal-head"><h2>'+(isEdit?'Editar pago al técnico':'Registrar pago al técnico')+'</h2><button class="icon-btn" id="m-close">✕</button></div>' +
+      '<div class="modal-body">' +
+        '<div class="field-hint" style="margin-bottom:10px;"><b>'+escapeHtml(tech)+'</b> · período '+fmtShortDate(pFrom)+' – '+fmtShortDate(pTo)+
+          (src.serviceCount != null ? ' · '+src.serviceCount+' servicio'+(src.serviceCount===1?'':'s') : '')+'</div>' +
+        '<div class="field-row">' +
+          '<div class="field"><label>Fecha de pago</label><input type="date" id="tp-date" value="'+escapeHtml(data.date)+'"></div>' +
+          '<div class="field"><label>Monto pagado (CLP)</label><input type="number" id="tp-amount" min="0" step="1" value="'+escapeHtml(data.amount)+'" placeholder="0"></div>' +
+        '</div>' +
+        '<div class="field"><label>Cómo se pagó</label><select id="tp-method">' +
+          '<option value="transferencia"'+(data.method==='transferencia'?' selected':'')+'>Transferencia</option>' +
+          '<option value="efectivo"'+(data.method!=='transferencia'?' selected':'')+'>Efectivo</option>' +
+        '</select></div>' +
+        '<div class="field"><label>Nota (opcional)</label><input type="text" id="tp-note" value="'+escapeHtml(data.note)+'" placeholder="Ej: pago semana 3"></div>' +
+        '<div class="form-error" id="tp-error">Indica la fecha y un monto mayor a 0.</div>' +
+        '<div id="m-confirm-slot"></div>' +
+        '<div class="modal-actions">' +
+          (isEdit ? '<button class="btn btn-danger" id="m-delete">Eliminar</button>' : '<button class="btn btn-ghost" id="m-cancel">Cancelar</button>') +
+          '<button class="btn btn-primary" id="m-save">'+(isEdit?'Guardar cambios':'Registrar pago')+'</button>' +
+        '</div>' +
+      '</div>';
+    openModal(html);
+    document.getElementById('m-close').onclick = closeModal;
+    if(!isEdit) document.getElementById('m-cancel').onclick = closeModal;
+
+    if(isEdit){
+      document.getElementById('m-delete').onclick = function(){
+        document.getElementById('m-confirm-slot').innerHTML =
+          '<div class="confirm-box"><span>¿Eliminar este pago? El período volverá a figurar como pendiente.</span>' +
+          '<span style="display:flex; gap:8px;"><button class="btn btn-ghost btn-sm" id="m-cancel-del">Cancelar</button><button class="btn btn-danger btn-sm" id="m-confirm-del">Eliminar</button></span></div>';
+        document.getElementById('m-cancel-del').onclick = function(){ document.getElementById('m-confirm-slot').innerHTML = ''; };
+        document.getElementById('m-confirm-del').onclick = async function(){
+          try{ await state.db.collection('techPayments').doc(existing.id).delete(); closeModal(); renderPagosTab(); }
+          catch(err){ console.error(err); alert('No se pudo eliminar el pago. Intenta de nuevo.'); }
+        };
+      };
+    }
+
+    document.getElementById('m-save').onclick = async function(){
+      var payload = {
+        date: document.getElementById('tp-date').value,
+        amount: Number(document.getElementById('tp-amount').value) || 0,
+        method: document.getElementById('tp-method').value === 'efectivo' ? 'efectivo' : 'transferencia',
+        note: document.getElementById('tp-note').value.trim(),
+        updatedAt: new Date().toISOString()
+      };
+      var errEl = document.getElementById('tp-error');
+      if(!payload.date || !(payload.amount > 0)){ errEl.classList.add('show'); return; }
+      if(!state.db){ errEl.textContent = 'Sin conexión a la base de datos.'; errEl.classList.add('show'); return; }
+      var btn = document.getElementById('m-save');
+      btn.disabled = true; btn.textContent = 'Guardando…';
+      try{
+        if(isEdit){
+          await state.db.collection('techPayments').doc(existing.id).update(payload);
+        } else {
+          payload.technician = tech;
+          payload.periodFrom = pFrom;
+          payload.periodTo = pTo;
+          payload.serviceCount = ctx.serviceCount;
+          payload.calc = ctx.calc;   // desglose del cálculo al momento de pagar
+          payload.createdAt = payload.updatedAt;
+          await state.db.collection('techPayments').add(payload);
+        }
+        closeModal();
+        renderPagosTab();
+      }catch(err){
+        console.error(err);
+        errEl.textContent = 'No se pudo guardar. Intenta de nuevo.';
+        errEl.classList.add('show');
+        btn.disabled = false; btn.textContent = isEdit ? 'Guardar cambios' : 'Registrar pago';
+      }
+    };
+  }
 
   /* ---------------- comparar meses ---------------- */
   var cmpMode = 'prev';   // 'prev' | 'year' | 'custom': cómo se elige el mes contra el que se compara
@@ -5167,7 +5285,16 @@ cerravolt@gmail.com`;
     var onlyPaid = document.getElementById('pay-only-paid').checked;
     var box = document.getElementById('pagos-results');
     var NOTE = '<div class="field-hint">A pagar = comisión (sobre monto − gastos) + gastos que pagó el técnico − efectivo que ya recibió − adelantos entregados dentro del rango de fechas.</div>';
+    var regCtx = null;   // datos del período del técnico seleccionado (para "Registrar pago")
     var wireRows = function(){
+      box.querySelectorAll('[data-techpay]').forEach(function(tr){
+        tr.addEventListener('click', function(){
+          var pid = tr.getAttribute('data-techpay');
+          if(state.techPayments.has(pid)) openTechPaymentForm(Object.assign({ id: pid }, state.techPayments.get(pid)));
+        });
+      });
+      var regBtn = box.querySelector('#btn-reg-pay');
+      if(regBtn && regCtx) regBtn.onclick = function(){ openTechPaymentForm(null, regCtx); };
       box.querySelectorAll('[data-advance]').forEach(function(tr){
         tr.addEventListener('click', function(){
           var aid = tr.getAttribute('data-advance');
@@ -5183,7 +5310,8 @@ cerravolt@gmail.com`;
       var rows = Array.from(state.technicians.values()).map(function(t){
         var items = computePayroll(t.name, from, to, onlyDone, onlyPaid);
         var pct = Number(t.commissionPct)||0;
-        return Object.assign({ name: t.name, pct: pct }, payTotals(items, pct, sumBy(advancesFor(t.name, from, to), 'amount')));
+        var paid = sumBy(techPaymentsFor(t.name, from, to), 'amount');
+        return Object.assign({ name: t.name, pct: pct, paid: paid }, payTotals(items, pct, sumBy(advancesFor(t.name, from, to), 'amount')));
       }).filter(function(r){ return r.count>0 || r.adv>0; });
       rows.sort(function(a,b){ return b.billed-a.billed; });
 
@@ -5208,15 +5336,19 @@ cerravolt@gmail.com`;
           '<div class="pay-stat"><div class="l">− Adelantos del rango</div><div class="v">'+formatCLP(g.adv)+'</div></div>' +
           '<div class="pay-stat"><div class="l">Total a pagar</div><div class="v">'+formatNet(g.toPay)+'</div></div>' +
         '</div>' + NOTE +
-        '<div class="pay-table-wrap"><table class="pay-table"><thead><tr><th>Técnico</th><th>Servicios</th><th>Facturado</th><th>Gastos</th><th>Base</th><th>Comisión</th><th>+ Reembolso</th><th>− Efectivo</th><th>− Adelantos</th><th>A pagar</th></tr></thead><tbody>' +
+        '<div class="pay-table-wrap"><table class="pay-table"><thead><tr><th>Técnico</th><th>Servicios</th><th>Facturado</th><th>Gastos</th><th>Base</th><th>Comisión</th><th>+ Reembolso</th><th>− Efectivo</th><th>− Adelantos</th><th>A pagar</th><th>Pagado</th><th>Saldo</th></tr></thead><tbody>' +
         rows.map(function(r){
           return '<tr><td>'+escapeHtml(r.name)+'</td><td class="mono">'+r.count+'</td><td class="mono">'+formatCLP(r.billed)+'</td><td class="mono">'+formatCLP(r.spent)+'</td><td class="mono">'+formatCLP(r.base)+'</td>' +
             '<td class="mono">'+(r.pct ? r.pct+'% = '+formatCLP(r.commission) : '—')+'</td><td class="mono">'+formatCLP(r.reimb)+'</td><td class="mono">'+formatCLP(r.cash)+'</td><td class="mono">'+formatCLP(r.adv)+'</td>' +
-            '<td class="mono"><b>'+(r.toPay!=null ? formatNet(r.toPay) : '—')+'</b></td></tr>';
+            '<td class="mono"><b>'+(r.toPay!=null ? formatNet(r.toPay) : '—')+'</b></td>' +
+            '<td class="mono">'+(r.paid ? formatCLP(r.paid) : '—')+'</td>' +
+            '<td class="mono">'+(r.toPay==null ? '—' : (r.toPay > 0 ? (r.toPay - r.paid <= 0 ? '<span style="color:var(--green-ink)">✓ Pagado</span>' : formatNet(r.toPay - r.paid)) : '—'))+'</td></tr>';
         }).join('') +
         '</tbody></table></div>' +
         '<h4 style="margin:10px 0 0; font-size:13px; color:var(--ink-soft);">Adelantos del rango</h4>' +
         advancesTableHtml(advancesFor('', from, to), true) +
+        '<h4 style="margin:10px 0 0; font-size:13px; color:var(--ink-soft);">Pagos registrados a técnicos</h4>' +
+        techPaymentsTableHtml(techPaymentsFor('', from, to), true) +
         '<button class="btn btn-ghost btn-sm" id="btn-export-payroll">⬇ CSV</button>' +
         '<div class="wa-hint" id="pagos-hint" hidden></div>' +
       '</div>';
@@ -5226,6 +5358,8 @@ cerravolt@gmail.com`;
         rows.forEach(function(r){ csvRows.push([r.name, r.count, r.billed, r.spent, r.base, r.pct||'', r.commission!=null?r.commission:'', r.reimb, r.cash, r.adv, r.toPay!=null?r.toPay:'']); });
         csvRows.push([], ['ADELANTOS DEL RANGO'], ['Fecha','Técnico','Método','Nota','Monto']);
         advancesFor('', from, to).forEach(function(a){ csvRows.push([a.date, a.technician||'', methodLabel(a.method), a.note||'', a.amount]); });
+        csvRows.push([], ['PAGOS REGISTRADOS A TÉCNICOS'], ['Pagado el','Técnico','Período desde','Período hasta','Método','Nota','Monto']);
+        techPaymentsFor('', from, to).forEach(function(p){ csvRows.push([p.date, p.technician||'', p.periodFrom||'', p.periodTo||'', methodLabel(p.method), p.note||'', p.amount]); });
         saveCsv('pagos-cerravolt-'+from+'_a_'+to+'.csv', rowsToCsv(csvRows), document.getElementById('btn-export-payroll'), document.getElementById('pagos-hint'));
       };
     } else {
@@ -5234,6 +5368,20 @@ cerravolt@gmail.com`;
       var pct = techDoc ? Number(techDoc.commissionPct)||0 : 0;
       var advList = advancesFor(techSel, from, to);
       var T = payTotals(items, pct, sumBy(advList, 'amount'));
+      var payList = techPaymentsFor(techSel, from, to);
+      var paidSum = sumBy(payList, 'amount');
+      var balance = pct ? T.toPay - paidSum : 0;
+      regCtx = { technician: techSel, from: from, to: to, amount: Math.max(0, balance), serviceCount: items.length,
+        calc: { billed: T.billed, spent: T.spent, base: T.base, pct: pct, commission: T.commission, reimb: T.reimb, cash: T.cash, adv: T.adv, toPay: T.toPay } };
+      var payBar = '';
+      if(pct && (T.toPay > 0 || paidSum > 0)){
+        var settled = T.toPay > 0 && balance <= 0;
+        payBar = '<div class="pay-stat-grid">' +
+          '<div class="pay-stat"><div class="l">Pagado al técnico</div><div class="v">'+formatCLP(paidSum)+'</div></div>' +
+          '<div class="pay-stat"><div class="l">'+(balance < 0 ? 'Pagado de más' : 'Saldo por pagar')+'</div><div class="v" style="color:'+(settled?'var(--green-ink)':'inherit')+'">'+(settled && balance === 0 ? '✓ Pagado' : formatCLP(Math.abs(balance)))+'</div></div>' +
+        '</div>' +
+        (balance > 0 ? '<button class="btn btn-primary btn-sm" id="btn-reg-pay" style="margin:6px 0;">✔ '+(paidSum>0?'Registrar otro pago':'Marcar período como pagado')+'</button>' : '');
+      }
       var doneCount = items.filter(function(s){ return s.completed; }).length;
       var paidCount = items.filter(function(s){ return s.paymentStatus==='pagado'; }).length;
 
@@ -5254,6 +5402,7 @@ cerravolt@gmail.com`;
           '<div class="pay-stat"><div class="l">− Adelantos del rango</div><div class="v">'+formatCLP(T.adv)+'</div></div>' +
           (pct ? '<div class="pay-stat"><div class="l">'+(T.toPay<0 ? 'Debe entregar a la empresa' : 'A pagar')+'</div><div class="v" style="color:'+(T.toPay<0?'var(--danger)':'var(--green-ink)')+'">'+formatCLP(Math.abs(T.toPay))+'</div></div>' : '') +
         '</div>' +
+        payBar +
         (pct ? NOTE : '<div class="field-hint">Este técnico no tiene una comisión configurada. Edítala en la pestaña Técnicos para calcular automáticamente el monto a pagar.</div>') +
         (items.length ? '<div class="pay-table-wrap"><table class="pay-table"><thead><tr><th>Fecha</th><th>Cliente</th><th>Monto</th><th>Gastos</th><th>Pagó el técnico</th><th>Base</th><th>Efectivo</th><th>Estado</th></tr></thead><tbody>' +
           items.map(function(s){
@@ -5265,6 +5414,8 @@ cerravolt@gmail.com`;
           : '<div class="empty-state" style="padding:24px;"><div class="msg">No hay servicios de este técnico en el rango seleccionado.</div></div>') +
         '<h4 style="margin:10px 0 0; font-size:13px; color:var(--ink-soft);">Adelantos del rango</h4>' +
         advancesTableHtml(advList, false) +
+        '<h4 style="margin:10px 0 0; font-size:13px; color:var(--ink-soft);">Pagos registrados a este técnico</h4>' +
+        techPaymentsTableHtml(payList, false) +
         '<button class="btn btn-ghost btn-sm" id="btn-export-payroll">⬇ CSV</button>' +
         '<div class="wa-hint" id="pagos-hint" hidden></div>' +
       '</div>';
@@ -5282,6 +5433,8 @@ cerravolt@gmail.com`;
         if(pct) csvRows.push(['','A pagar (comisión + gastos del técnico - efectivo - adelantos)','','','','','','',T.toPay,'','']);
         csvRows.push([], ['ADELANTOS'], ['Fecha','Método','Nota','Monto']);
         advList.forEach(function(a){ csvRows.push([a.date, methodLabel(a.method), a.note||'', a.amount]); });
+        csvRows.push([], ['PAGOS REGISTRADOS'], ['Pagado el','Período desde','Período hasta','Método','Nota','Monto']);
+        payList.forEach(function(p){ csvRows.push([p.date, p.periodFrom||'', p.periodTo||'', methodLabel(p.method), p.note||'', p.amount]); });
         saveCsv('pago-'+techSel.toLowerCase().replace(/\s+/g,'-')+'-'+from+'_a_'+to+'.csv', rowsToCsv(csvRows), document.getElementById('btn-export-payroll'), document.getElementById('pagos-hint'));
       };
     }
@@ -5914,7 +6067,7 @@ cerravolt@gmail.com`;
   })();
 
   function resetState(){
-    state.services = new Map(); state.clients = new Map(); state.technicians = new Map(); state.purchases = new Map(); state.advances = new Map();
+    state.services = new Map(); state.clients = new Map(); state.technicians = new Map(); state.purchases = new Map(); state.advances = new Map(); state.techPayments = new Map();
     state.activeClientId = null; state.activeTechId = null;
   }
   window.CVAgenda = {
