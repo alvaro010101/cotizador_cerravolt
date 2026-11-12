@@ -4686,8 +4686,44 @@ cerravolt@gmail.com`;
   async function commitTechPayment(payload, serviceIds, advanceIds){
     var payRef = state.db.collection('techPayments').doc();
     var ops = [];
-    serviceIds.forEach(function(id){ ops.push([state.db.collection('services').doc(id), { techPaymentId: payRef.id, techPaidAt: payload.date }]); });
-    advanceIds.forEach(function(id){ ops.push([state.db.collection('advances').doc(id), { techPaymentId: payRef.id }]); });
+    var checkRefs = [];
+    serviceIds.forEach(function(id){
+      var r = state.db.collection('services').doc(id);
+      checkRefs.push(r);
+      ops.push([r, { techPaymentId: payRef.id, techPaidAt: payload.date }]);
+    });
+    advanceIds.forEach(function(id){
+      var r = state.db.collection('advances').doc(id);
+      checkRefs.push(r);
+      ops.push([r, { techPaymentId: payRef.id }]);
+    });
+    // Si algo ya figura pagado (por ejemplo, desde otro dispositivo), se rechaza todo el pago
+    var assertNotPaid = function(snaps){
+      var bad = [];
+      snaps.forEach(function(sn){
+        var v = sn && sn.exists ? sn.data() : null;
+        if(v && v.techPaymentId){
+          bad.push(v.clientName
+            ? ('• ' + v.clientName + (v.date ? ' (' + fmtShortDate(v.date) + ')' : '') + (v.trackingCode ? ' · ' + v.trackingCode : '') + (v.techPaidAt ? ' — pagado el ' + fmtShortDate(v.techPaidAt) : ''))
+            : ('• Adelanto de ' + formatCLP(v.amount) + (v.date ? ' (' + fmtShortDate(v.date) + ')' : '') + ' — ya descontado en un pago anterior'));
+        }
+      });
+      if(bad.length){
+        var e = new Error('Ya está pagado al técnico, no se puede pagar de nuevo:\n' + bad.join('\n'));
+        e.code = 'already-paid';
+        throw e;
+      }
+    };
+    if(ops.length < 450){
+      await state.db.firestore.runTransaction(async function(tx){
+        var snaps = await Promise.all(checkRefs.map(function(r){ return tx.get(r); }));
+        assertNotPaid(snaps);
+        tx.set(payRef, payload);
+        ops.forEach(function(o){ tx.update(o[0], o[1]); });
+      });
+      return;
+    }
+    assertNotPaid(await Promise.all(checkRefs.map(function(r){ return r.get(); })));
     var first = true;
     do{
       var batch = state.db.firestore.batch();
@@ -4786,6 +4822,14 @@ cerravolt@gmail.com`;
         renderPagosTab();
       }catch(err){
         console.error(err);
+        if(err && err.code === 'already-paid'){
+          errEl.style.whiteSpace = 'pre-line';
+          errEl.textContent = '⚠ ' + err.message;
+          errEl.classList.add('show');
+          btn.disabled = false; btn.textContent = 'Entendido';
+          btn.onclick = function(){ closeModal(); renderPagosTab(); };
+          return;
+        }
         errEl.textContent = 'No se pudo guardar. Intenta de nuevo.';
         errEl.classList.add('show');
         btn.disabled = false; btn.textContent = isEdit ? 'Guardar cambios' : 'Registrar pago';
@@ -5415,7 +5459,14 @@ cerravolt@gmail.com`;
         if(items.length && T.toPay > 0){
           payBar += '<button class="btn btn-primary btn-sm" id="btn-reg-pay" style="margin:6px 0;">✔ Marcar período como pagado ('+formatCLP(T.toPay)+')</button>';
         } else if(!items.length && paidItems.length){
-          payBar += '<div class="field-hint" style="color:var(--green-ink); font-weight:600;">✓ Período pagado: los '+paidItems.length+' servicio'+(paidItems.length===1?'':'s')+' de este rango ya fueron pagados al técnico y no se vuelven a calcular. Para recalcularlos, elimina el pago en la lista de abajo.</div>';
+          payBar += '<div class="field-hint" style="color:var(--green-ink); font-weight:600;">✓ Período pagado: los '+paidItems.length+' servicio'+(paidItems.length===1?'':'s')+' de este rango ya fueron pagados al técnico y no se pueden pagar ni calcular de nuevo. Para recalcularlos, elimina el pago en la lista de abajo.</div>';
+        }
+        if(paidItems.length){
+          payBar += '<div style="border:1px solid var(--danger); color:var(--danger); border-radius:10px; padding:10px 12px; font-size:13px; margin:6px 0;">' +
+            '<b>⚠ '+paidItems.length+' servicio'+(paidItems.length===1?'':'s')+' de este rango ya está'+(paidItems.length===1?'':'n')+' pagado'+(paidItems.length===1?'':'s')+' al técnico</b> y no se incluye'+(paidItems.length===1?'':'n')+' en el cálculo:' +
+            paidItems.slice(0, 8).map(function(x){ return '<div>• '+escapeHtml(x.clientName||'')+' ('+fmtShortDate(x.date)+(x.trackingCode?' · '+escapeHtml(x.trackingCode):'')+(x.techPaidAt?') — pagado el '+fmtShortDate(x.techPaidAt):')')+'</div>'; }).join('') +
+            (paidItems.length > 8 ? '<div>… y '+(paidItems.length-8)+' más</div>' : '') +
+          '</div>';
         }
       }
       var doneCount = items.filter(function(s){ return s.completed; }).length;
