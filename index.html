@@ -6194,6 +6194,7 @@ cerravolt@gmail.com`;
     function paint(focusLast){
       box.innerHTML = '<div class="exp-box">' +
         '<div class="exp-head"><span>Gastos del servicio</span></div>' +
+        (s.assignedTo ? '<div class="field-hint" style="margin:0 0 8px;">🔒 Servicio asignado a '+escapeHtml(s.assignedTo)+': los gastos los registra <b>solo CerraVolt</b>, desde aquí. '+escapeHtml(s.assignedTo)+' no puede registrarlos en su app.</div>' : '') +
         (exps.length ? exps.map(rowHtml).join('') : '<div class="exp-empty">Aún no hay gastos. Agrega el primero abajo.</div>') +
         '<button type="button" class="exp-addbtn" id="exp-add">+ Agregar gasto</button>' +
         '<div class="exp-net"><span>Total neto</span><span class="mono" id="exp-tnet"></span></div>' +
