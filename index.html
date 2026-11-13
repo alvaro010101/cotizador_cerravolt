@@ -1068,7 +1068,23 @@
     body.m-preview #tabCotizacion > aside{ display:none; }
     body:not(.m-preview) #tabCotizacion > .preview-wrap{ display:none; }
   }
-  @media print{ .doc-page, .rep-sheet{ zoom:1 !important; } #pdfBusy, #pdfSheet, .mobile-bar{ display:none !important; } }
+  /* Ventana para apartar un horario en AbreYa */
+  #abSheet{
+    position:fixed; inset:0; z-index:300; display:flex; align-items:center; justify-content:center; padding:16px;
+    background:rgba(5,10,20,.62); backdrop-filter:blur(3px);
+  }
+  #abSheet .pdf-card{ border-radius:18px; max-width:420px; text-align:left; padding:20px 18px; max-height:92vh; overflow-y:auto; }
+  #abSheet .pdf-title{ text-align:center; }
+  .ab-note{ font-size:12.5px; color:#9fb6cf; line-height:1.45; }
+  .ab-label{ font-size:12px; color:#9fb6cf; margin-bottom:4px; display:block; }
+  .ab-input{
+    width:100%; min-height:44px; padding:9px 12px; border-radius:10px; border:1px solid #2a4a73; background:#0b1626; color:#eaf2fb;
+    font-family:var(--body); font-size:16px;
+  }
+  .ab-row{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .ab-err{ color:#ff8a8a; font-size:13px; white-space:pre-line; }
+  .pdf-btn.danger{ background:#3a1620; border-color:#7a2a3a; color:#ffb3bd; }
+  @media print{ .doc-page, .rep-sheet{ zoom:1 !important; } #pdfBusy, #pdfSheet, #abSheet, .mobile-bar{ display:none !important; } }
 </style>
 </head>
 <body>
@@ -1190,6 +1206,12 @@
         <div class="field"><label>Concepto</label><input id="qAbonoLabel" placeholder="Visita técnica"></div>
         <div class="field"><label>Monto abonado ($)</label><input id="qAbonoAmount" type="number" min="0" inputmode="numeric" placeholder="0"></div>
       </div>
+    </div>
+
+    <div class="field-group">
+      <h2>Asignar a AbreYa</h2>
+      <p id="abStatus" style="font-size:12.5px; color:var(--steel-300); margin-bottom:10px;"></p>
+      <button class="add-btn" id="abBtn" type="button" onclick="openAbreya()">🔒 Asignar horario a AbreYa</button>
     </div>
 
 
@@ -1920,6 +1942,177 @@ cerravolt@gmail.com</textarea>
     }
   };
   window.CVApp = CVApp;
+
+  // ---------- Asignar un horario en la agenda de AbreYa (sin detalle) ----------
+  // AbreYa es otro proyecto de Firebase: se abre una segunda conexión e inicia sesión con la cuenta de AbreYa.
+  // Allí solo se guarda fecha, hora y duración: la agenda de AbreYa muestra "Servicio asignado", sin cliente ni montos.
+  const ABREYA_CONFIG = {
+    apiKey: "AIzaSyDbMNkPaMnHkvzgN8kyD6WjxEWx7kLzv5M",
+    authDomain: "cotizador-abreya.firebaseapp.com",
+    projectId: "cotizador-abreya",
+    storageBucket: "cotizador-abreya.firebasestorage.app",
+    messagingSenderId: "827029111062",
+    appId: "1:827029111062:web:7f6c9041b4c0537cf71037"
+  };
+  let abreyaApp = null;
+  let abreyaAssign = null;   // { id, date, time, durationMin } de la cotización abierta
+  function abreyaFb(){
+    if(!abreyaApp){
+      try{ abreyaApp = firebase.app('abreya'); }
+      catch(e){ abreyaApp = firebase.initializeApp(ABREYA_CONFIG, 'abreya'); }
+    }
+    return abreyaApp;
+  }
+  function abreyaUser(){
+    return new Promise(resolve => {
+      const unsub = abreyaFb().auth().onAuthStateChanged(u => { unsub(); resolve(u); });
+    });
+  }
+  function abreyaBlocks(uid){
+    return abreyaFb().firestore().collection('users').doc(uid).collection('blocks');
+  }
+  function abreyaWhen(a){
+    const d = new Date(a.date + 'T12:00:00');
+    const day = d.toLocaleDateString('es-CL', { weekday:'short', day:'numeric', month:'short' });
+    const h = a.durationMin >= 60 ? (a.durationMin % 60 ? (a.durationMin / 60).toFixed(1) : (a.durationMin / 60)) + ' h' : a.durationMin + ' min';
+    return day + ' · ' + a.time + ' (' + h + ')';
+  }
+  function renderAbreyaStatus(){
+    const st = document.getElementById('abStatus'), btn = document.getElementById('abBtn');
+    if(!st || !btn) return;
+    if(abreyaAssign){
+      st.innerHTML = '✓ <b>Asignado a AbreYa:</b> ' + escapeHtml(abreyaWhen(abreyaAssign));
+      btn.textContent = '🔒 Cambiar o quitar asignación';
+    } else {
+      st.textContent = 'Aparta un horario en la agenda de AbreYa. Allí solo se verá "Servicio asignado", sin detalles del cliente.';
+      btn.textContent = '🔒 Asignar horario a AbreYa';
+    }
+  }
+  function abreyaErrorText(e){
+    const c = (e && e.code) || '';
+    if(c === 'permission-denied') return 'AbreYa no permite guardar aquí. En Firebase del proyecto cotizador-abreya, publica la regla: match /users/{userId}/{document=**} { allow read, write: if request.auth != null && request.auth.uid == userId; }';
+    if(c.startsWith('auth/') && /credential|password|user-not-found|invalid-email/.test(c)) return 'Correo o contraseña de AbreYa incorrectos.';
+    if(c === 'auth/too-many-requests') return 'Demasiados intentos. Espera unos minutos e inténtalo de nuevo.';
+    if(c === 'auth/network-request-failed' || c === 'unavailable') return 'Sin conexión. Revisa tu internet e intenta de nuevo.';
+    return 'No se pudo completar la acción. Intenta de nuevo.';
+  }
+  function abCard(html){
+    let el = document.getElementById('abSheet');
+    if(!el){
+      el = document.createElement('div'); el.id = 'abSheet'; el.className = 'no-print';
+      el.addEventListener('click', e => { if(e.target === el) abClose(); });
+      document.body.appendChild(el);
+    }
+    el.innerHTML = '<div class="pdf-card">' + html + '</div>';
+    return el;
+  }
+  function abClose(){ const el = document.getElementById('abSheet'); if(el) el.remove(); }
+
+  async function openAbreya(){
+    if(!document.getElementById('qNum').value.trim()){
+      alert('Primero escribe el número de la cotización.');
+      return;
+    }
+    abCard('<div class="pdf-title">AbreYa</div><div style="display:flex; justify-content:center; padding:14px;"><div class="pdf-spin"></div></div>');
+    let user = null;
+    try{ user = await abreyaUser(); }catch(e){ console.error(e); }
+    if(user) abreyaForm(user); else abreyaLogin();
+  }
+
+  function abreyaLogin(msg){
+    const el = abCard(
+      '<div class="pdf-title">Cuenta de AbreYa</div>' +
+      '<div class="ab-note">Inicia sesión con la cuenta de AbreYa para apartar horarios en su agenda. Quedará recordada en este dispositivo.</div>' +
+      '<div><label class="ab-label" for="abEmail">Correo</label><input class="ab-input" id="abEmail" type="email" autocomplete="username" autocapitalize="off"></div>' +
+      '<div><label class="ab-label" for="abPass">Contraseña</label><input class="ab-input" id="abPass" type="password" autocomplete="current-password"></div>' +
+      '<div class="ab-err" id="abErr">' + escapeHtml(msg || '') + '</div>' +
+      '<button type="button" class="pdf-btn main" id="abLogin">Iniciar sesión</button>' +
+      '<button type="button" class="pdf-close" id="abCancel">Cancelar</button>');
+    el.querySelector('#abCancel').onclick = abClose;
+    const go = async () => {
+      const email = el.querySelector('#abEmail').value.trim(), pass = el.querySelector('#abPass').value;
+      if(!email || !pass){ el.querySelector('#abErr').textContent = 'Escribe el correo y la contraseña.'; return; }
+      const btn = el.querySelector('#abLogin'); btn.textContent = 'Entrando…'; btn.style.pointerEvents = 'none';
+      try{
+        const cred = await abreyaFb().auth().signInWithEmailAndPassword(email, pass);
+        abreyaForm(cred.user);
+      }catch(e){
+        console.error(e);
+        btn.textContent = 'Iniciar sesión'; btn.style.pointerEvents = '';
+        el.querySelector('#abErr').textContent = abreyaErrorText(e);
+      }
+    };
+    el.querySelector('#abLogin').onclick = go;
+    el.querySelector('#abPass').addEventListener('keydown', e => { if(e.key === 'Enter') go(); });
+  }
+
+  async function abreyaForm(user){
+    // Si el horario ya no existe en AbreYa (lo quitaron allá), se considera sin asignar
+    if(abreyaAssign){
+      try{
+        const snap = await abreyaBlocks(user.uid).doc(abreyaAssign.id).get();
+        if(!snap.exists){ abreyaAssign = null; renderAbreyaStatus(); }
+      }catch(e){ console.error(e); }
+    }
+    const a = abreyaAssign;
+    const dur = a ? a.durationMin : 120;
+    const opts = [[60,'1 hora'],[90,'1,5 horas'],[120,'2 horas'],[180,'3 horas'],[240,'4 horas'],[480,'Todo el día (8 h)']];
+    const el = abCard(
+      '<div class="pdf-title">' + (a ? 'Horario en AbreYa' : 'Asignar a AbreYa') + '</div>' +
+      '<div class="ab-note">En AbreYa solo aparecerá <b>🔒 Servicio asignado</b> con la hora. No se envía cliente, dirección ni montos.</div>' +
+      '<div class="ab-row">' +
+        '<div><label class="ab-label" for="abDate">Fecha</label><input class="ab-input" id="abDate" type="date" value="' + (a ? a.date : new Date().toISOString().slice(0,10)) + '"></div>' +
+        '<div><label class="ab-label" for="abTime">Hora</label><input class="ab-input" id="abTime" type="time" value="' + (a ? a.time : '09:00') + '"></div>' +
+      '</div>' +
+      '<div><label class="ab-label" for="abDur">Duración</label><select class="ab-input" id="abDur">' +
+        opts.map(o => '<option value="' + o[0] + '"' + (o[0] === dur ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select></div>' +
+      '<div class="ab-err" id="abErr"></div>' +
+      '<button type="button" class="pdf-btn main" id="abSave">' + (a ? 'Actualizar horario' : 'Apartar horario') + '</button>' +
+      (a ? '<button type="button" class="pdf-btn danger" id="abRemove">Quitar asignación</button>' : '') +
+      '<button type="button" class="pdf-close" id="abCancel">Cerrar</button>' +
+      '<button type="button" class="pdf-close" id="abLogout" style="font-size:12px; min-height:32px; padding:4px;">Cerrar sesión de AbreYa (' + escapeHtml(user.email || '') + ')</button>');
+    el.querySelector('#abCancel').onclick = abClose;
+    el.querySelector('#abLogout').onclick = async () => { try{ await abreyaFb().auth().signOut(); }catch(e){} abClose(); };
+    const busy = (btn, txt) => { btn.textContent = txt; btn.style.pointerEvents = 'none'; };
+    el.querySelector('#abSave').onclick = async function(){
+      const date = el.querySelector('#abDate').value, time = el.querySelector('#abTime').value;
+      const durationMin = Number(el.querySelector('#abDur').value) || 120;
+      if(!date || !time){ el.querySelector('#abErr').textContent = 'Elige la fecha y la hora.'; return; }
+      busy(this, 'Guardando…');
+      try{
+        const now = new Date().toISOString();
+        const id = abreyaAssign ? abreyaAssign.id : 'cv-' + Date.now().toString(36);
+        const data = { date, time, durationMin, source: 'CerraVolt', updatedAt: now };
+        if(!abreyaAssign) data.createdAt = now;
+        await abreyaBlocks(user.uid).doc(id).set(data, { merge: true });
+        abreyaAssign = { id, date, time, durationMin };
+        renderAbreyaStatus();
+        abClose();
+        showSaveStatus('Horario asignado en AbreYa');
+        saveQuote().catch(() => {});
+      }catch(e){
+        console.error(e);
+        this.textContent = a ? 'Actualizar horario' : 'Apartar horario'; this.style.pointerEvents = '';
+        el.querySelector('#abErr').textContent = abreyaErrorText(e);
+      }
+    };
+    const rm = el.querySelector('#abRemove');
+    if(rm) rm.onclick = async function(){
+      busy(this, 'Quitando…');
+      try{
+        await abreyaBlocks(user.uid).doc(abreyaAssign.id).delete();
+        abreyaAssign = null;
+        renderAbreyaStatus();
+        abClose();
+        showSaveStatus('Asignación quitada de AbreYa');
+        saveQuote().catch(() => {});
+      }catch(e){
+        console.error(e);
+        this.textContent = 'Quitar asignación'; this.style.pointerEvents = '';
+        el.querySelector('#abErr').textContent = abreyaErrorText(e);
+      }
+    };
+  }
 
   // Guarda la cotización y abre el formulario de nueva cita en la Agenda con
   // cliente, teléfono, dirección, N° de cotización y monto ya completados.
@@ -2659,6 +2852,7 @@ cerravolt@gmail.com</textarea>
       serviceShow: document.getElementById('qServiceShow').checked,
       items: items,
       iva: document.getElementById('qIva').checked,
+      abreya: abreyaAssign,
       abono: {
         on: document.getElementById('qAbonoOn').checked,
         label: document.getElementById('qAbonoLabel').value,
@@ -2697,6 +2891,8 @@ cerravolt@gmail.com</textarea>
     document.getElementById('qServiceShow').checked = s.serviceShow !== false;
     items = (s.items && s.items.length) ? s.items : [{ desc:'', qty:1, price:0 }];
     document.getElementById('qIva').checked = !!s.iva;
+    abreyaAssign = s.abreya || null;
+    renderAbreyaStatus();
     document.getElementById('qAbonoOn').checked = !!s.abono?.on;
     document.getElementById('qAbonoLabel').value = s.abono?.label || '';
     document.getElementById('qAbonoAmount').value = s.abono?.amount || '';
@@ -3113,6 +3309,8 @@ cerravolt@gmail.com</textarea>
     document.getElementById('qServiceShow').checked = true;
     items = [{ desc:'', qty:1, price:0 }];
     document.getElementById('qIva').checked = false;
+    abreyaAssign = null;
+    renderAbreyaStatus();
     document.getElementById('qAbonoOn').checked = false;
     document.getElementById('qAbonoLabel').value = '';
     document.getElementById('qAbonoAmount').value = '';
