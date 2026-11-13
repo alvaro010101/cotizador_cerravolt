@@ -6108,6 +6108,9 @@ cerravolt@gmail.com`;
     });
     var box = document.getElementById('m-expenses');
     var timer = null, dirty = false;
+    var who = (s.technician || '').trim() || 'Técnico';   // quien puede pagar un gasto además de la empresa (ej. AbreYa)
+    var whoPct = 0;
+    state.technicians.forEach(function(t){ if(t.name === s.technician) whoPct = Number(t.commissionPct) || 0; });
 
     function parts(e){ return expParts({ qty: e.qty, price: e.price, iva: e.iva }); }
     function totals(){
@@ -6148,6 +6151,27 @@ cerravolt@gmail.com`;
       var n = document.getElementById('exp-net');
       n.textContent = formatNet(net);
       n.className = 'mono ' + (net<0 ? 'neg' : 'pos');
+      // Liquidación al final del servicio: lo que corresponde pagarle a quien lo hizo y lo que queda para la empresa
+      var settle = document.getElementById('exp-settle');
+      if(settle){
+        if(!s.technician || !whoPct){ settle.innerHTML = ''; }
+        else {
+          var live = Object.assign({}, state.services.get(id) || s, { expenses: exps });
+          var T = payTotals([live], whoPct, 0);
+          var row = function(l, v, bold){ return '<div class="exp-net"'+(bold?' style="font-weight:700;"':'')+'><span>'+l+'</span><span class="mono">'+v+'</span></div>'; };
+          settle.innerHTML =
+            '<div class="exp-head" style="margin-top:10px;"><span>Liquidación del servicio · '+escapeHtml(who)+'</span></div>' +
+            row('Monto del servicio', formatCLP(T.billed)) +
+            row('− Gastos (todos)', formatCLP(T.spent)) +
+            row('= Utilidad (monto − gastos)', formatNet(T.billed - T.spent)) +
+            row('Ganancia de '+escapeHtml(who)+' ('+whoPct+'%)', formatCLP(T.commission)) +
+            row('+ Gastos que pagó '+escapeHtml(who), formatCLP(T.reimb)) +
+            row('− Efectivo ya recibido por '+escapeHtml(who), formatCLP(T.cash)) +
+            row(T.toPay < 0 ? escapeHtml(who)+' debe entregar' : 'A pagar a '+escapeHtml(who), formatCLP(Math.abs(T.toPay)), true) +
+            row('Queda para CerraVolt', formatNet(T.billed - T.spent - T.commission), true) +
+            '<div class="field-hint">Se paga desde la pestaña Pagos, junto con el resto del período.</div>';
+        }
+      }
     }
     function rowHtml(e, i){
       var p = parts(e);
@@ -6161,7 +6185,7 @@ cerravolt@gmail.com`;
         '</div>' +
         '<div class="exp-meta">' +
           '<label>Fecha de compra<input type="date" class="e-date" value="'+escapeHtml(e.date)+'"></label>' +
-          '<label>Lo pagó<select class="e-by"><option value="empresa"'+(e.paidBy==='empresa'?' selected':'')+'>Empresa</option><option value="tecnico"'+(e.paidBy==='tecnico'?' selected':'')+'>Técnico</option></select></label>' +
+          '<label>Lo pagó<select class="e-by"><option value="empresa"'+(e.paidBy==='empresa'?' selected':'')+'>Empresa</option><option value="tecnico"'+(e.paidBy==='tecnico'?' selected':'')+'>'+escapeHtml(who)+'</option></select></label>' +
           '<label class="exp-ivachk"><input type="checkbox" class="e-iva"'+(e.iva?' checked':'')+'> Con IVA ('+IVA_PCT+'%)</label>' +
           '<span class="exp-ivaamt">IVA <b class="mono e-ivaamt">'+formatCLP(p.iva)+'</b></span>' +
         '</div>' +
@@ -6175,8 +6199,9 @@ cerravolt@gmail.com`;
         '<div class="exp-net"><span>Total neto</span><span class="mono" id="exp-tnet"></span></div>' +
         '<div class="exp-net"><span>IVA compras ('+IVA_PCT+'%)</span><span class="mono" id="exp-tiva"></span></div>' +
         '<div class="exp-net"><span>Total pagado (neto + IVA)</span><span class="mono" id="exp-total"></span></div>' +
-        '<div class="exp-net" id="exp-ttech-row" hidden><span>Pagado por el técnico (se le reembolsa)</span><span class="mono" id="exp-ttech"></span></div>' +
+        '<div class="exp-net" id="exp-ttech-row" hidden><span>Pagado por '+escapeHtml(who)+' (se le reembolsa)</span><span class="mono" id="exp-ttech"></span></div>' +
         '<div class="exp-net"><span>Queda (monto − total pagado)</span><span id="exp-net"></span></div>' +
+        '<div id="exp-settle"></div>' +
       '</div>';
       box.querySelectorAll('.exp-item').forEach(function(row){
         var i = Number(row.getAttribute('data-i'));
