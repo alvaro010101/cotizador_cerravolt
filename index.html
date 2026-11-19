@@ -156,11 +156,12 @@
   }
   .field{margin-bottom:12px;}
   .field label{display:block; font-size:12.5px; color:var(--steel-500); margin-bottom:5px;}
-  .field input, .field textarea{
+  .field input, .field textarea, .field select{
     width:100%; background:var(--panel-2); border:1px solid var(--line-strong);
     border-radius:8px; padding:9px 11px; font-size:13.5px; color:var(--steel-100);
   }
-  .field input:focus, .field textarea:focus{outline:none; border-color:var(--blue-500);}
+  .field input:focus, .field textarea:focus, .field select:focus{outline:none; border-color:var(--blue-500);}
+  .field select{ min-height:38px; font-family:inherit; }
   .field textarea{resize:vertical; min-height:90px; line-height:1.5;}
   .row2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
 
@@ -1226,6 +1227,13 @@
         <label class="checkbox-field"><input type="checkbox" id="qIva"> Mostrar IVA (19%) por separado</label>
       </div>
       <div class="field" style="margin-top:10px;">
+        <label class="checkbox-field"><input type="checkbox" id="qDiscOn"> Aplicar descuento (porcentaje o monto)</label>
+      </div>
+      <div class="row2" id="discFields" style="display:none; margin-top:8px;">
+        <div class="field"><label>Tipo de descuento</label><select id="qDiscType"><option value="pct">Porcentaje (%)</option><option value="amt">Monto ($)</option></select></div>
+        <div class="field"><label id="qDiscLabel">Descuento (%)</label><input id="qDiscValue" type="number" min="0" step="any" inputmode="decimal" placeholder="0"></div>
+      </div>
+      <div class="field" style="margin-top:10px;">
         <label class="checkbox-field"><input type="checkbox" id="qAbonoOn"> Descontar abono (ej. visita técnica pagada)</label>
       </div>
       <div class="row2" id="abonoFields" style="display:none; margin-top:8px;">
@@ -2137,7 +2145,7 @@ cerravolt@gmail.com</textarea>
         const now = new Date().toISOString();
         const id = abreyaAssign ? abreyaAssign.id : 'cv-' + Date.now().toString(36);
         // status null: AbreYa decide (solicitud si ya tiene un servicio a esa hora)
-        const svcAmount = computeTotal(items, document.getElementById('qIva').checked);   // valor del servicio: el socio lo ve en su tarjeta
+        const svcAmount = computeTotal(items, document.getElementById('qIva').checked, currentDiscount());   // valor del servicio: el socio lo ve en su tarjeta
         const data = { date, time, durationMin, sharePct: pct, amount: svcAmount, status: null, source: 'CerraVolt', updatedAt: now };
         if(!abreyaAssign) data.createdAt = now;
         await abreyaBlocks(user.uid).doc(id).set(data, { merge: true });
@@ -2207,7 +2215,7 @@ cerravolt@gmail.com</textarea>
       address: document.getElementById('cAddr').value.trim(),
       description: document.getElementById('qService').value.trim() || (firstItem ? firstItem.desc.trim() : ''),
       quoteNumber: document.getElementById('qNum').value.trim(),
-      amount: computeTotal(items, document.getElementById('qIva').checked)
+      amount: computeTotal(items, document.getElementById('qIva').checked, currentDiscount())
     });
   }
 
@@ -2865,23 +2873,31 @@ cerravolt@gmail.com</textarea>
     // Totals
     const showIva = document.getElementById('qIva').checked;
     const totalsEl = document.getElementById('outTotals');
-    if(showIva){
-      const iva = subtotal * 0.19;
-      const total = subtotal + iva;
-      totalsEl.innerHTML = `
-        <tr><td>Neto</td><td>${clp(subtotal)}</td></tr>
-        <tr><td>IVA (19%)</td><td>${clp(iva)}</td></tr>
-        <tr class="total"><td>Total</td><td>${clp(total)}</td></tr>
-      `;
-    } else {
-      totalsEl.innerHTML = `<tr class="total"><td>Total</td><td>${clp(subtotal)}</td></tr>`;
+    document.getElementById('discFields').style.display = document.getElementById('qDiscOn').checked ? '' : 'none';
+    const dType = document.getElementById('qDiscType').value;
+    document.getElementById('qDiscLabel').textContent = dType === 'amt' ? 'Monto del descuento ($)' : 'Descuento (%)';
+    const disc = calcDiscount(subtotal, currentDiscount());
+    const net = subtotal - disc;
+    const iva = showIva ? net * 0.19 : 0;
+    const grand = net + iva;
+    let rows = '';
+    if(disc > 0){
+      const dv = Number(document.getElementById('qDiscValue').value) || 0;
+      const dLabel = dType === 'amt' ? 'Descuento' : 'Descuento (' + (Math.round(Math.min(dv, 100) * 100) / 100) + '%)';
+      rows += `<tr><td>${showIva ? 'Neto' : 'Subtotal'}</td><td>${clp(subtotal)}</td></tr>
+        <tr><td>${dLabel}</td><td>− ${clp(disc)}</td></tr>`;
+      if(showIva) rows += `<tr><td>Neto con descuento</td><td>${clp(net)}</td></tr>`;
+    } else if(showIva){
+      rows += `<tr><td>Neto</td><td>${clp(subtotal)}</td></tr>`;
     }
+    if(showIva) rows += `<tr><td>IVA (19%)</td><td>${clp(iva)}</td></tr>`;
+    rows += `<tr class="total"><td>Total</td><td>${clp(grand)}</td></tr>`;
+    totalsEl.innerHTML = rows;
     // Abono (ej. visita técnica pagada): se descuenta del total y queda el saldo a pagar
     const abonoOn = document.getElementById('qAbonoOn').checked;
     document.getElementById('abonoFields').style.display = abonoOn ? '' : 'none';
     const abono = abonoOn ? Math.max(0, Number(document.getElementById('qAbonoAmount').value) || 0) : 0;
     if(abono > 0){
-      const grand = showIva ? subtotal * 1.19 : subtotal;
       const label = document.getElementById('qAbonoLabel').value.trim() || 'Visita técnica';
       totalsEl.innerHTML += `
         <tr><td>Abono · ${escapeHtml(label)}</td><td>− ${clp(abono)}</td></tr>
@@ -2932,6 +2948,7 @@ cerravolt@gmail.com</textarea>
       serviceShow: document.getElementById('qServiceShow').checked,
       items: items,
       iva: document.getElementById('qIva').checked,
+      discount: currentDiscount(),
       abreya: abreyaAssign,
       abono: {
         on: document.getElementById('qAbonoOn').checked,
@@ -2971,6 +2988,9 @@ cerravolt@gmail.com</textarea>
     document.getElementById('qServiceShow').checked = s.serviceShow !== false;
     items = (s.items && s.items.length) ? s.items : [{ desc:'', qty:1, price:0 }];
     document.getElementById('qIva').checked = !!s.iva;
+    document.getElementById('qDiscOn').checked = !!s.discount?.on;
+    document.getElementById('qDiscType').value = s.discount?.type === 'amt' ? 'amt' : 'pct';
+    document.getElementById('qDiscValue').value = s.discount?.value || '';
     abreyaAssign = s.abreya || null;
     refreshAbreyaRemote();
     document.getElementById('qAbonoOn').checked = !!s.abono?.on;
@@ -3000,8 +3020,19 @@ cerravolt@gmail.com</textarea>
     update();
   }
 
-  function computeTotal(its, iva){
+  // Descuento de la cotización: porcentaje o monto fijo, se aplica sobre el neto (antes de IVA).
+  function calcDiscount(sub, d){
+    if(!d || !d.on) return 0;
+    const v = Math.max(0, Number(d.value) || 0);
+    const amt = d.type === 'amt' ? v : sub * Math.min(v, 100) / 100;
+    return Math.min(Math.round(amt), Math.round(sub));
+  }
+  function currentDiscount(){
+    return { on: document.getElementById('qDiscOn').checked, type: document.getElementById('qDiscType').value, value: document.getElementById('qDiscValue').value };
+  }
+  function computeTotal(its, iva, disc){
     let s = (its || []).reduce((acc, it) => acc + (it.qty||0) * (it.price||0), 0);
+    s -= calcDiscount(s, disc);
     if (iva) s = s * 1.19;
     return Math.round(s);
   }
@@ -3027,7 +3058,7 @@ cerravolt@gmail.com</textarea>
           addr: v.client?.addr || '',
           contact: v.client?.contact || '',
           date: v.date || '',
-          total: computeTotal(v.items, v.iva)
+          total: computeTotal(v.items, v.iva, v.discount)
         };
       });
     }catch(e){
@@ -3103,8 +3134,9 @@ cerravolt@gmail.com</textarea>
     setTimeout(() => { el.style.opacity = '0'; }, 2500);
   }
 
-  function computeTotal(its, iva){
+  function computeTotal(its, iva, disc){
     let s = (its || []).reduce((acc, it) => acc + (it.qty||0) * (it.price||0), 0);
+    s -= calcDiscount(s, disc);
     if (iva) s = s * 1.19;
     return Math.round(s);
   }
@@ -3389,6 +3421,9 @@ cerravolt@gmail.com</textarea>
     document.getElementById('qServiceShow').checked = true;
     items = [{ desc:'', qty:1, price:0 }];
     document.getElementById('qIva').checked = false;
+    document.getElementById('qDiscOn').checked = false;
+    document.getElementById('qDiscType').value = 'pct';
+    document.getElementById('qDiscValue').value = '';
     abreyaAssign = null;
     refreshAbreyaRemote();
     document.getElementById('qAbonoOn').checked = false;
@@ -3428,7 +3463,7 @@ cerravolt@gmail.com`;
   // init de la app (formulario) — corre siempre, esté o no logueado
   document.getElementById('qDate').value = new Date().toISOString().slice(0,10);
   try{ document.execCommand('defaultParagraphSeparator', false, 'div'); }catch(e){}
-  ['cName','cAddr','cContact','qRutShow','cRut','qNum','qDate','qValid','qService','qServiceShow','qIva','qAbonoOn','qAbonoLabel','qAbonoAmount','qNotes','qCondValida','qCondGarantia','qCondNoVisita','qCond50','qCondSEC','qBankShow','qBank'].forEach(id=>{
+  ['cName','cAddr','cContact','qRutShow','cRut','qNum','qDate','qValid','qService','qServiceShow','qIva','qDiscOn','qDiscType','qDiscValue','qAbonoOn','qAbonoLabel','qAbonoAmount','qNotes','qCondValida','qCondGarantia','qCondNoVisita','qCond50','qCondSEC','qBankShow','qBank'].forEach(id=>{
     document.getElementById(id).addEventListener('input', update);
   });
   // Da formato 12.345.678-9 al RUT chileno al salir del campo (si no calza, se deja tal cual)
